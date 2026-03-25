@@ -1,0 +1,7 @@
+#include <wx/msw/rcdefs.h>
+
+// Icon
+0 ICON "@ICON_PATH@"
+
+// For wxWidgets standard icons
+#include "wx/msw/wx.rc"

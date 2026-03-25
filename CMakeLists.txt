@@ -1,0 +1,105 @@
+cmake_minimum_required(VERSION 3.28)
+project(slider VERSION 1.0.0 LANGUAGES CXX)
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+
+include(ProjectOptions)
+include(Dependencies)
+include(CompilerWarnings)
+include(Versioning)
+include(Sanitizers)
+include(CodeCoverage)
+include(LinkTimeOptimization)
+
+set(SLIDER_CORE_SOURCES
+    src/core/board.cc
+    src/core/solver.cc
+    src/core/scrambler.cc
+    src/core/state.cc
+)
+
+add_library(slider_core STATIC ${SLIDER_CORE_SOURCES})
+target_include_directories(slider_core PUBLIC include)
+target_compile_features(slider_core PUBLIC cxx_std_20)
+set_project_warnings(slider_core)
+EnableSanitizers(slider_core)
+EnableCoverage(slider_core)
+EnableLTO(slider_core)
+GenerateVersionHeader(slider_core)
+
+if(WIN32)
+    target_compile_definitions(slider_core PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+endif()
+if(MSVC)
+    target_compile_options(slider_core PRIVATE /utf-8)
+endif()
+
+if(WIN32)
+    file(COPY "${CMAKE_SOURCE_DIR}/resources/icon.ico" DESTINATION "${CMAKE_BINARY_DIR}")
+    set(ICON_PATH "icon.ico")
+    configure_file(src/app/slider.rc.in "${CMAKE_BINARY_DIR}/slider.rc")
+    add_executable(slider WIN32
+        src/app/wx_app.cc
+        "${CMAKE_BINARY_DIR}/slider.rc"
+    )
+else()
+    add_executable(slider
+        src/app/wx_app.cc
+    )
+    if(APPLE)
+        set_target_properties(slider PROPERTIES MACOSX_BUNDLE TRUE)
+    endif()
+endif()
+
+target_link_libraries(slider PRIVATE slider_core wx::core wx::base wx::adv)
+set_project_warnings(slider)
+EnableSanitizers(slider)
+EnableCoverage(slider)
+EnableLTO(slider)
+GenerateVersionHeader(slider)
+
+if(MSVC)
+    target_compile_options(slider PRIVATE /utf-8)
+endif()
+
+option(SLIDER_BUILD_TESTS "Build tests" ON)
+if(SLIDER_BUILD_TESTS)
+    enable_testing()
+    include(GoogleTest)
+
+    add_executable(slider_tests
+        tests/unit/board_test.cc
+        tests/unit/solver_test.cc
+        tests/unit/scrambler_test.cc
+        tests/unit/gui_logic_test.cc
+    )
+    target_link_libraries(slider_tests
+        PRIVATE GTest::gtest_main GTest::gtest slider_core
+    )
+    set_project_warnings(slider_tests)
+    EnableSanitizers(slider_tests)
+    EnableCoverage(slider_tests)
+    if(MSVC)
+        target_compile_options(slider_tests PRIVATE /utf-8)
+    endif()
+
+    gtest_discover_tests(slider_tests)
+    AddCoverageTarget()
+endif()
+
+if(TARGET slider)
+    if(WIN32)
+        install(TARGETS slider RUNTIME DESTINATION bin)
+    else()
+        install(TARGETS slider RUNTIME DESTINATION bin BUNDLE DESTINATION .)
+    endif()
+
+    install(DIRECTORY ${CMAKE_SOURCE_DIR}/resources/ DESTINATION bin/resources)
+
+    if(WIN32)
+        install(FILES ${CMAKE_SOURCE_DIR}/resources/icon.ico DESTINATION bin)
+    endif()
+endif()
+
+include(Packaging)
+

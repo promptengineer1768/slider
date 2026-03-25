@@ -1,0 +1,238 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 28, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_CXX_STANDARD": "20",
+        "CMAKE_CXX_EXTENSIONS": "OFF",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "SLIDER_BUILD_TESTS": "ON",
+        "SLIDER_WARNINGS_AS_ERRORS": "ON"
+      }
+    },
+    {
+      "name": "vcpkg-base",
+      "hidden": true,
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": {
+          "type": "FILEPATH",
+          "value": "$env{VCPKG_INSTALLATION_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        }
+      }
+    },
+{
+"name": "sanitizer-base",
+"hidden": true,
+"cacheVariables": {
+"SLIDER_ENABLE_SANITIZERS": "ON"
+}
+},
+{
+"name": "coverage-base",
+"hidden": true,
+"cacheVariables": {
+"SLIDER_ENABLE_COVERAGE": "ON"
+}
+},
+    {
+      "name": "windows-msvc-debug",
+      "displayName": "Windows MSVC Debug",
+      "inherits": "vcpkg-base",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "VCPKG_TARGET_TRIPLET": "x64-windows-static"
+      }
+    },
+    {
+      "name": "windows-msvc-debug-sanitize",
+      "displayName": "Windows MSVC Debug (with Sanitizers)",
+      "inherits": ["windows-msvc-debug", "sanitizer-base"],
+      "generator": "Ninja"
+    },
+{
+"name": "windows-msvc-release",
+"displayName": "Windows MSVC Release",
+"inherits": "vcpkg-base",
+"generator": "Ninja",
+"cacheVariables": {
+"CMAKE_BUILD_TYPE": "Release",
+"VCPKG_TARGET_TRIPLET": "x64-windows-static",
+"CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON"
+}
+},
+    {
+      "name": "windows-clangcl-debug",
+      "displayName": "Windows Clang-CL Debug",
+      "inherits": "vcpkg-base",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "clang-cl",
+        "CMAKE_CXX_COMPILER": "clang-cl",
+        "VCPKG_TARGET_TRIPLET": "x64-windows-static"
+      }
+    },
+    {
+      "name": "windows-clangcl-debug-sanitize",
+      "displayName": "Windows Clang-CL Debug (with Sanitizers)",
+      "inherits": ["windows-clangcl-debug", "sanitizer-base"],
+      "generator": "Ninja"
+    },
+    {
+      "name": "windows-gcc-debug",
+      "displayName": "Windows GCC (MSYS2 UCRT64) Debug",
+      "inherits": "base",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "SLIDER_WARNINGS_AS_ERRORS": "OFF"
+      }
+    },
+    {
+      "name": "windows-gcc-debug-sanitize",
+      "displayName": "Windows GCC Debug (with Sanitizers)",
+      "inherits": ["windows-gcc-debug", "sanitizer-base"],
+      "generator": "Ninja"
+    },
+    {
+      "name": "linux-clang-debug",
+      "displayName": "Linux Clang Debug",
+      "inherits": "base",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_BUILD_WITH_INSTALL_RPATH": "ON"
+      }
+    },
+    {
+      "name": "linux-clang-debug-sanitize",
+      "displayName": "Linux Clang Debug (with Sanitizers)",
+      "inherits": ["linux-clang-debug", "sanitizer-base"],
+      "generator": "Ninja"
+    },
+{
+"name": "linux-clang-release",
+"displayName": "Linux Clang Release",
+"inherits": "base",
+"generator": "Ninja",
+"cacheVariables": {
+"CMAKE_BUILD_TYPE": "Release",
+"CMAKE_C_COMPILER": "clang",
+"CMAKE_CXX_COMPILER": "clang++",
+"CMAKE_BUILD_WITH_INSTALL_RPATH": "ON",
+"CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON"
+}
+},
+{
+"name": "linux-clang-coverage",
+"displayName": "Linux Clang Coverage",
+"inherits": ["linux-clang-debug", "coverage-base"],
+"generator": "Ninja"
+},
+{
+"name": "linux-gcc-coverage",
+"displayName": "Linux GCC Coverage",
+"inherits": ["linux-gcc-debug", "coverage-base"],
+"generator": "Ninja"
+},
+    {
+      "name": "linux-gcc-debug",
+      "displayName": "Linux GCC Debug",
+      "inherits": "base",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "CMAKE_BUILD_WITH_INSTALL_RPATH": "ON"
+      }
+    },
+    {
+      "name": "linux-gcc-debug-sanitize",
+      "displayName": "Linux GCC Debug (with Sanitizers)",
+      "inherits": ["linux-gcc-debug", "sanitizer-base"],
+      "generator": "Ninja"
+    },
+{
+"name": "macos-clang-debug",
+"displayName": "macOS Clang Debug",
+"inherits": "base",
+"generator": "Ninja",
+"cacheVariables": {
+"CMAKE_BUILD_TYPE": "Debug"
+}
+},
+{
+"name": "macos-clang-debug-sanitize",
+"displayName": "macOS Clang Debug (with Sanitizers)",
+"inherits": ["macos-clang-debug", "sanitizer-base"],
+"generator": "Ninja"
+},
+{
+"name": "macos-clang-release",
+"displayName": "macOS Clang Release",
+"inherits": "base",
+"generator": "Ninja",
+"cacheVariables": {
+"CMAKE_BUILD_TYPE": "Release",
+"CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON"
+}
+},
+{
+"name": "macos-clang-coverage",
+"displayName": "macOS Clang Coverage",
+"inherits": ["macos-clang-debug", "coverage-base"],
+"generator": "Ninja"
+}
+],
+"buildPresets": [
+    { "name": "build-windows-msvc-debug", "configurePreset": "windows-msvc-debug" },
+    { "name": "build-windows-msvc-debug-sanitize", "configurePreset": "windows-msvc-debug-sanitize" },
+    { "name": "build-windows-msvc-release", "configurePreset": "windows-msvc-release" },
+    { "name": "build-windows-clangcl-debug", "configurePreset": "windows-clangcl-debug" },
+    { "name": "build-windows-clangcl-debug-sanitize", "configurePreset": "windows-clangcl-debug-sanitize" },
+    { "name": "build-windows-gcc-debug", "configurePreset": "windows-gcc-debug" },
+    { "name": "build-windows-gcc-debug-sanitize", "configurePreset": "windows-gcc-debug-sanitize" },
+    { "name": "build-linux-clang-debug", "configurePreset": "linux-clang-debug" },
+    { "name": "build-linux-clang-debug-sanitize", "configurePreset": "linux-clang-debug-sanitize" },
+    { "name": "build-linux-clang-release", "configurePreset": "linux-clang-release" },
+    { "name": "build-linux-gcc-debug", "configurePreset": "linux-gcc-debug" },
+    { "name": "build-linux-gcc-debug-sanitize", "configurePreset": "linux-gcc-debug-sanitize" },
+    { "name": "build-macos-clang-debug", "configurePreset": "macos-clang-debug" },
+    { "name": "build-macos-clang-debug-sanitize", "configurePreset": "macos-clang-debug-sanitize" },
+{ "name": "build-macos-clang-release", "configurePreset": "macos-clang-release" },
+{ "name": "build-linux-clang-coverage", "configurePreset": "linux-clang-coverage" },
+{ "name": "build-linux-gcc-coverage", "configurePreset": "linux-gcc-coverage" },
+{ "name": "build-macos-clang-coverage", "configurePreset": "macos-clang-coverage" }
+],
+  "testPresets": [
+    { "name": "test-windows-msvc-debug", "configurePreset": "windows-msvc-debug", "output": { "outputOnFailure": true } },
+    { "name": "test-windows-msvc-debug-sanitize", "configurePreset": "windows-msvc-debug-sanitize", "output": { "outputOnFailure": true } },
+    { "name": "test-windows-msvc-release", "configurePreset": "windows-msvc-release", "output": { "outputOnFailure": true } },
+    { "name": "test-windows-clangcl-debug", "configurePreset": "windows-clangcl-debug", "output": { "outputOnFailure": true } },
+    { "name": "test-windows-clangcl-debug-sanitize", "configurePreset": "windows-clangcl-debug-sanitize", "output": { "outputOnFailure": true } },
+    { "name": "test-windows-gcc-debug", "configurePreset": "windows-gcc-debug", "output": { "outputOnFailure": true } },
+    { "name": "test-windows-gcc-debug-sanitize", "configurePreset": "windows-gcc-debug-sanitize", "output": { "outputOnFailure": true } },
+    { "name": "test-linux-clang-debug", "configurePreset": "linux-clang-debug", "output": { "outputOnFailure": true } },
+    { "name": "test-linux-clang-debug-sanitize", "configurePreset": "linux-clang-debug-sanitize", "output": { "outputOnFailure": true } },
+    { "name": "test-linux-clang-release", "configurePreset": "linux-clang-release", "output": { "outputOnFailure": true } },
+    { "name": "test-linux-gcc-debug", "configurePreset": "linux-gcc-debug", "output": { "outputOnFailure": true } },
+    { "name": "test-linux-gcc-debug-sanitize", "configurePreset": "linux-gcc-debug-sanitize", "output": { "outputOnFailure": true } },
+    { "name": "test-macos-clang-debug", "configurePreset": "macos-clang-debug", "output": { "outputOnFailure": true } },
+    { "name": "test-macos-clang-debug-sanitize", "configurePreset": "macos-clang-debug-sanitize", "output": { "outputOnFailure": true } },
+{ "name": "test-macos-clang-release", "configurePreset": "macos-clang-release", "output": { "outputOnFailure": true } },
+{ "name": "test-linux-clang-coverage", "configurePreset": "linux-clang-coverage", "output": { "outputOnFailure": true } },
+{ "name": "test-linux-gcc-coverage", "configurePreset": "linux-gcc-coverage", "output": { "outputOnFailure": true } },
+{ "name": "test-macos-clang-coverage", "configurePreset": "macos-clang-coverage", "output": { "outputOnFailure": true } }
+]
+}

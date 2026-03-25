@@ -1,0 +1,9 @@
+#include <wx/msw/rcdefs.h>
+
+// Icon
+// The first icon in a DLL or EXE is the one used by Windows Explorer.
+// We use 0 as the ID to ensure it is the first one.
+0 ICON "icon.ico"
+
+// For wxWidgets standard icons
+#include "wx/msw/wx.rc"
