@@ -315,6 +315,7 @@ class SliderFrame : public wxFrame {
     board_ = std::make_unique<Board>(size);
     board_panel_->SetBoard(board_.get());
     optimal_moves_ = -1;
+    auto_play_slide_sound_ = true;
     UpdateStatus();
   }
 
@@ -363,6 +364,7 @@ class SliderFrame : public wxFrame {
     board_ = std::make_unique<Board>(size);
     board_panel_->SetBoard(board_.get());
     optimal_moves_ = -1;
+    auto_play_slide_sound_ = true;
     UpdateStatus();
   }
 
@@ -432,6 +434,7 @@ class SliderFrame : public wxFrame {
     board_panel_->SetBoard(board_.get()); // Fix dangling pointer!
     auto_moves_ = moves;
     auto_duration_ = 0.05; // Slightly faster for scrambling
+    auto_play_slide_sound_ = false;
     is_scrambling_ = true;
     
     Board temp_board = *board_;
@@ -447,6 +450,7 @@ class SliderFrame : public wxFrame {
     if (sol.success) {
       auto_moves_ = sol.moves;
       auto_duration_ = 0.5;
+      auto_play_slide_sound_ = true;
       ProcessNextAutoMove();
     }
   }
@@ -457,6 +461,7 @@ class SliderFrame : public wxFrame {
     if (sol.success) {
       auto_moves_ = sol.moves;
       auto_duration_ = 0.5;
+      auto_play_slide_sound_ = false;
       ProcessNextAutoMove();
     } else {
       wxMessageBox("Solver could not find a solution in reasonable time.", "Info");
@@ -487,7 +492,8 @@ class SliderFrame : public wxFrame {
       const auto& tiles = board_->GetState().GetTiles();
       if (tile_pos >= 0 && tile_pos < static_cast<int>(tiles.size())) {
         int tile_val = tiles[tile_pos];
-        PerformMove(dir, tile_val, auto_duration_, true, !is_scrambling_);
+        PerformMove(dir, tile_val, auto_duration_, true,
+                    auto_play_slide_sound_ && !is_scrambling_);
       }
     } else {
       if (!auto_moves_.empty()) ProcessNextAutoMove();
@@ -507,6 +513,7 @@ class SliderFrame : public wxFrame {
   wxButton* solve_btn_ = nullptr;
   std::vector<Direction> auto_moves_;
   double auto_duration_ = 0.5;
+  bool auto_play_slide_sound_ = true;
   int optimal_moves_ = -1;
   std::function<void()> completion_callback_;
   bool is_scrambling_ = false;
