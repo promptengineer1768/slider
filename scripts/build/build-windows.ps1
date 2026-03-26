@@ -10,6 +10,10 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$scriptDir = Split-Path $MyInvocation.MyCommand.Path -Parent
+Import-Module (Join-Path $scriptDir "..\helpers\common.ps1") -Force
+Ensure-ToolsInPath
+
 $presetMap = @{
     "msvc-Debug" = "windows-msvc-debug"
     "msvc-Release" = "windows-msvc-release"
@@ -32,9 +36,24 @@ function Find-ToolDir {
     if ($KnownDir -and (Test-Path (Join-Path $KnownDir $ExeName))) {
         return $KnownDir
     }
+    $cmd = Get-Command $ExeName -ErrorAction SilentlyContinue
+    if ($cmd -and $cmd.Source) {
+        return Split-Path $cmd.Source -Parent
+    }
     if ($GlobPattern) {
         $found = Get-ChildItem $GlobPattern -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($found) { return $found.DirectoryName }
+    }
+    $vsPath = Get-VSInstallationPath
+    if ($vsPath) {
+        $vsCmake = Join-Path $vsPath "Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin"
+        if ($ExeName -eq "cmake.exe" -and (Test-Path (Join-Path $vsCmake $ExeName))) {
+            return $vsCmake
+        }
+        $vsNinja = Join-Path $vsPath "Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja"
+        if ($ExeName -eq "ninja.exe" -and (Test-Path (Join-Path $vsNinja $ExeName))) {
+            return $vsNinja
+        }
     }
     return $null
 }
