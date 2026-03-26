@@ -42,6 +42,34 @@ const std::vector<Theme> kThemes = {
     {"Cyber", wxColour(128, 0, 128), wxColour(255, 0, 255), wxColour(75, 0, 130), *wxCYAN, wxColour(10, 10, 10), wxColour(40, 40, 40)}
 };
 
+wxString ResolveSoundPath(const wxString& filename) {
+  wxFileName exe_path(wxStandardPaths::Get().GetExecutablePath());
+  exe_path.SetFullName(filename);
+  if (exe_path.FileExists()) {
+    return exe_path.GetFullPath();
+  }
+
+  wxFileName resource_path(wxStandardPaths::Get().GetExecutablePath());
+  resource_path.AppendDir("resources");
+  resource_path.SetFullName(filename);
+  if (resource_path.FileExists()) {
+    return resource_path.GetFullPath();
+  }
+
+  wxFileName cwd_path(wxGetCwd(), filename);
+  if (cwd_path.FileExists()) {
+    return cwd_path.GetFullPath();
+  }
+
+  wxFileName cwd_resource_path(wxGetCwd(), filename);
+  cwd_resource_path.AppendDir("resources");
+  if (cwd_resource_path.FileExists()) {
+    return cwd_resource_path.GetFullPath();
+  }
+
+  return {};
+}
+
 class BoardPanel : public wxPanel {
  public:
   BoardPanel(wxWindow* parent, Board* board)
@@ -342,7 +370,7 @@ class SliderFrame : public wxFrame {
     int tile_val = event.GetInt();
     auto dir = board_->GetDirectionToMoveTile(tile_val);
     if (dir) {
-      PerformMove(*dir, tile_val, 0.2);
+      PerformMove(*dir, tile_val, 0.2, false, true);
     }
   }
 
@@ -362,21 +390,18 @@ class SliderFrame : public wxFrame {
   }
 
   void PlaySoundEffect(const wxString& filename) {
-    wxFileName fn(wxStandardPaths::Get().GetExecutablePath());
-    fn.SetFullName(filename);
-    wxString path = fn.GetFullPath();
-    if (!wxFileExists(path)) {
-      fn.AppendDir("resources");
-      path = fn.GetFullPath();
-    }
-    if (wxFileExists(path)) {
+    wxString path = ResolveSoundPath(filename);
+    if (!path.empty()) {
       wxSound::Play(path, wxSOUND_ASYNC);
     }
   }
 
-  void PerformMove(Direction dir, int tile_val, double duration, bool is_auto = false) {
+  void PerformMove(Direction dir, int tile_val, double duration, bool is_auto = false,
+                   bool play_slide_sound = true) {
     if (board_panel_->IsAnimating()) return;
-    PlaySoundEffect("slide.wav");
+    if (play_slide_sound) {
+      PlaySoundEffect("slide.wav");
+    }
     
     completion_callback_ = [this, dir, is_auto]() {
       board_->Move(dir);
@@ -462,7 +487,7 @@ class SliderFrame : public wxFrame {
       const auto& tiles = board_->GetState().GetTiles();
       if (tile_pos >= 0 && tile_pos < static_cast<int>(tiles.size())) {
         int tile_val = tiles[tile_pos];
-        PerformMove(dir, tile_val, auto_duration_, true);
+        PerformMove(dir, tile_val, auto_duration_, true, !is_scrambling_);
       }
     } else {
       if (!auto_moves_.empty()) ProcessNextAutoMove();

@@ -34,6 +34,12 @@ if(MSVC)
     target_compile_options(slider_core PRIVATE /utf-8)
 endif()
 
+file(COPY
+    "${CMAKE_SOURCE_DIR}/slide.wav"
+    "${CMAKE_SOURCE_DIR}/complete.wav"
+    DESTINATION "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources"
+)
+
 if(WIN32)
     file(COPY "${CMAKE_SOURCE_DIR}/resources/icon.ico" DESTINATION "${CMAKE_BINARY_DIR}")
     set(ICON_PATH "icon.ico")
@@ -95,6 +101,11 @@ if(TARGET slider)
     endif()
 
     install(DIRECTORY ${CMAKE_SOURCE_DIR}/resources/ DESTINATION bin/resources)
+    install(FILES
+        ${CMAKE_SOURCE_DIR}/slide.wav
+        ${CMAKE_SOURCE_DIR}/complete.wav
+        DESTINATION bin/resources
+    )
 
     if(WIN32)
         install(FILES ${CMAKE_SOURCE_DIR}/resources/icon.ico DESTINATION bin)
@@ -102,4 +113,3 @@ if(TARGET slider)
 endif()
 
 include(Packaging)
-
