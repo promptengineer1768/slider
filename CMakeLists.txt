@@ -35,7 +35,8 @@ if(MSVC)
 endif()
 
 file(COPY
-    "${CMAKE_SOURCE_DIR}/resources/"
+    "${CMAKE_SOURCE_DIR}/resources/slide.wav"
+    "${CMAKE_SOURCE_DIR}/resources/complete.wav"
     DESTINATION "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources"
 )
 
@@ -103,7 +104,17 @@ if(TARGET slider)
         install(TARGETS slider RUNTIME DESTINATION bin BUNDLE DESTINATION .)
     endif()
 
-    install(DIRECTORY ${CMAKE_SOURCE_DIR}/resources/ DESTINATION bin/resources)
+    if(WIN32)
+        # Only ship runtime assets in bin/resources on Windows (avoid duplicating icon sources).
+        install(FILES
+            ${CMAKE_SOURCE_DIR}/resources/slide.wav
+            ${CMAKE_SOURCE_DIR}/resources/complete.wav
+            DESTINATION bin/resources
+        )
+    else()
+        # Keep full resources directory on non-Windows for now.
+        install(DIRECTORY ${CMAKE_SOURCE_DIR}/resources/ DESTINATION bin/resources)
+    endif()
 
     if(WIN32)
         install(FILES ${CMAKE_SOURCE_DIR}/resources/icon.ico DESTINATION bin)
