@@ -11,7 +11,7 @@ BoardState::BoardState(int size, const std::vector<int>& tiles)
 
 int BoardState::GetEmptyPos() const {
   for (size_t i = 0; i < tiles_.size(); ++i) {
-    if (tiles_[i] == 0) return i;
+    if (tiles_[i] == 0) return static_cast<int>(i);
   }
   return -1;
 }
