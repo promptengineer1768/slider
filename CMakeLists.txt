@@ -35,8 +35,7 @@ if(MSVC)
 endif()
 
 file(COPY
-    "${CMAKE_SOURCE_DIR}/slide.wav"
-    "${CMAKE_SOURCE_DIR}/complete.wav"
+    "${CMAKE_SOURCE_DIR}/resources/"
     DESTINATION "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources"
 )
 
@@ -105,11 +104,6 @@ if(TARGET slider)
     endif()
 
     install(DIRECTORY ${CMAKE_SOURCE_DIR}/resources/ DESTINATION bin/resources)
-    install(FILES
-        ${CMAKE_SOURCE_DIR}/slide.wav
-        ${CMAKE_SOURCE_DIR}/complete.wav
-        DESTINATION bin/resources
-    )
 
     if(WIN32)
         install(FILES ${CMAKE_SOURCE_DIR}/resources/icon.ico DESTINATION bin)
