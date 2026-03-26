@@ -86,7 +86,10 @@ if ($Compiler -eq "msvc" -or $Compiler -eq "clang") {
         exit 1
     }
 
-    $vcvarsPath = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat"
+    $vcvarsPath = Get-VcvarsallPath
+    if (-not $vcvarsPath) {
+        $vcvarsPath = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat"
+    }
     Assert-PathExists -PathValue $vcvarsPath -Message "vcvarsall.bat not found at $vcvarsPath"
 
     $vcpkgRoot = Join-Path $env:USERPROFILE "vcpkg"
