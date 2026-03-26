@@ -2,56 +2,45 @@
 
 #include <fstream>
 #include <system_error>
+#include <utility>
 
 namespace slider {
 
-static void SetError(std::string* out, const char* msg) {
-  if (out) *out = msg;
-}
-
-bool SaveBoardStateToFile(const std::filesystem::path& path,
-                          const BoardState& state,
-                          std::string* error) {
+SaveBoardStateResult SaveBoardStateToFile(const std::filesystem::path& path,
+                                          const BoardState& state) {
   if (!state.IsValid()) {
-    SetError(error, "Invalid board state");
-    return false;
+    return {false, "Invalid board state"};
   }
 
   std::ofstream os(path, std::ios::binary);
   if (!os) {
-    SetError(error, "Could not open file for writing");
-    return false;
+    return {false, "Could not open file for writing"};
   }
 
   const std::string data = state.Serialize();
   os.write(data.data(), static_cast<std::streamsize>(data.size()));
   if (!os) {
-    SetError(error, "Could not write file");
-    return false;
+    return {false, "Could not write file"};
   }
 
-  return true;
+  return {true, {}};
 }
 
-std::optional<BoardState> LoadBoardStateFromFile(const std::filesystem::path& path,
-                                                 const SaveFileOptions& options,
-                                                 std::string* error) {
+LoadBoardStateResult LoadBoardStateFromFile(const std::filesystem::path& path,
+                                            const SaveFileOptions& options) {
   std::error_code ec;
   const auto file_size = std::filesystem::file_size(path, ec);
   if (ec) {
-    SetError(error, "Could not read file size");
-    return std::nullopt;
+    return {std::nullopt, "Could not read file size"};
   }
 
   if (static_cast<size_t>(file_size) > options.max_bytes) {
-    SetError(error, "Save file too large");
-    return std::nullopt;
+    return {std::nullopt, "Save file too large"};
   }
 
   std::ifstream is(path, std::ios::binary);
   if (!is) {
-    SetError(error, "Could not open file for reading");
-    return std::nullopt;
+    return {std::nullopt, "Could not open file for reading"};
   }
 
   std::string content;
@@ -59,19 +48,16 @@ std::optional<BoardState> LoadBoardStateFromFile(const std::filesystem::path& pa
   if (!content.empty()) {
     is.read(content.data(), static_cast<std::streamsize>(content.size()));
     if (!is) {
-      SetError(error, "Could not read file");
-      return std::nullopt;
+      return {std::nullopt, "Could not read file"};
     }
   }
 
   BoardState decoded = BoardState::Deserialize(content);
   if (!decoded.IsValid()) {
-    SetError(error, "Invalid save file");
-    return std::nullopt;
+    return {std::nullopt, "Invalid save file"};
   }
 
-  return decoded;
+  return {decoded, {}};
 }
 
 }  // namespace slider
-

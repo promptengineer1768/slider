@@ -1,0 +1,49 @@
+{
+  "themes": [
+    {
+      "name": "Ocean",
+      "tile_color": [0, 102, 204, 255],
+      "tile_highlight": [51, 153, 255, 255],
+      "tile_shadow": [0, 51, 153, 255],
+      "text_color": [255, 255, 255, 255],
+      "bg_primary": [240, 248, 255, 255],
+      "bg_secondary": [176, 196, 222, 255]
+    },
+    {
+      "name": "Forest",
+      "tile_color": [34, 139, 34, 255],
+      "tile_highlight": [50, 205, 50, 255],
+      "tile_shadow": [0, 100, 0, 255],
+      "text_color": [255, 255, 255, 255],
+      "bg_primary": [245, 255, 250, 255],
+      "bg_secondary": [143, 188, 143, 255]
+    },
+    {
+      "name": "Lava",
+      "tile_color": [255, 69, 0, 255],
+      "tile_highlight": [255, 140, 0, 255],
+      "tile_shadow": [139, 0, 0, 255],
+      "text_color": [255, 255, 255, 255],
+      "bg_primary": [255, 245, 238, 255],
+      "bg_secondary": [255, 218, 185, 255]
+    },
+    {
+      "name": "Modern",
+      "tile_color": [60, 60, 60, 255],
+      "tile_highlight": [100, 100, 100, 255],
+      "tile_shadow": [30, 30, 30, 255],
+      "text_color": [255, 255, 255, 255],
+      "bg_primary": [240, 240, 240, 255],
+      "bg_secondary": [200, 200, 200, 255]
+    },
+    {
+      "name": "Cyber",
+      "tile_color": [128, 0, 128, 255],
+      "tile_highlight": [255, 0, 255, 255],
+      "tile_shadow": [75, 0, 130, 255],
+      "text_color": [0, 255, 255, 255],
+      "bg_primary": [10, 10, 10, 255],
+      "bg_secondary": [40, 40, 40, 255]
+    }
+  ]
+}

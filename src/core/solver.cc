@@ -106,6 +106,16 @@ struct BoardStateHash {
   }
 };
 
+int GetHeuristicCached(const BoardState& state,
+                       std::unordered_map<BoardState, int, BoardStateHash>* cache) {
+  if (!cache) return GetHeuristic(state);
+  const auto it = cache->find(state);
+  if (it != cache->end()) return it->second;
+  const int heuristic = GetHeuristic(state);
+  (*cache)[state] = heuristic;
+  return heuristic;
+}
+
 std::vector<Direction> GetValidMovesFromEmpty(int size, int empty_pos) {
   std::vector<Direction> moves;
   const int row = empty_pos / size;
@@ -181,8 +191,9 @@ Solution Solver::Solve(const BoardState& start_state, const SolverOptions& optio
   std::priority_queue<Node, std::vector<Node>, std::greater<Node>> open_set;
   std::unordered_map<BoardState, int, BoardStateHash> g_score;
   std::unordered_map<BoardState, std::pair<BoardState, Direction>, BoardStateHash> came_from;
+  std::unordered_map<BoardState, int, BoardStateHash> heuristic_cache;
 
-  open_set.push({start_state, 0, GetHeuristic(start_state)});
+  open_set.push({start_state, 0, GetHeuristicCached(start_state, &heuristic_cache)});
   g_score[start_state] = 0;
 
   const int nodes_limit = (options.nodes_limit > 0) ? options.nodes_limit : 100000;
@@ -215,7 +226,7 @@ Solution Solver::Solve(const BoardState& start_state, const SolverOptions& optio
       if (it == g_score.end() || tentative_g < it->second) {
         g_score[next_state] = tentative_g;
         came_from[next_state] = std::make_pair(current.state, dir);
-        open_set.push({next_state, tentative_g, GetHeuristic(next_state)});
+        open_set.push({next_state, tentative_g, GetHeuristicCached(next_state, &heuristic_cache)});
       }
     }
   }

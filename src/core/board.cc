@@ -17,7 +17,6 @@ Board::Board(int size) {
     move_count_ = 0;
     return;
   }
-
   const size_t tile_count = size_u * size_u;
   if (tile_count == 0 || tile_count > static_cast<size_t>(std::numeric_limits<int>::max())) {
     state_ = BoardState();
@@ -103,18 +102,8 @@ std::vector<Direction> Board::GetValidMoves() const {
 
 std::optional<Direction> Board::GetDirectionToMoveTile(int tile_val) const {
   int size = state_.GetSize();
-  const auto& tiles = state_.GetTiles();
   if (size <= 0) return std::nullopt;
-  int tile_pos = -1;
-  for (size_t i = 0; i < tiles.size(); ++i) {
-    if (tiles[i] == tile_val) {
-      if (i > static_cast<size_t>(std::numeric_limits<int>::max())) {
-        return std::nullopt;
-      }
-      tile_pos = static_cast<int>(i);
-      break;
-    }
-  }
+  int tile_pos = state_.GetTilePos(tile_val);
   if (tile_pos == -1) return std::nullopt;
 
   int empty_pos = state_.GetEmptyPos();

@@ -19,12 +19,11 @@ TEST(SaveFileTest, RejectsOversizedFile) {
     os.write(content.data(), static_cast<std::streamsize>(content.size()));
   }
 
-  std::string error;
   SaveFileOptions options;
-  auto loaded = LoadBoardStateFromFile(temp_path, options, &error);
+  const auto loaded = LoadBoardStateFromFile(temp_path, options);
 
-  EXPECT_FALSE(loaded.has_value());
-  EXPECT_FALSE(error.empty());
+  EXPECT_FALSE(loaded.first.has_value());
+  EXPECT_FALSE(loaded.second.empty());
 
   std::filesystem::remove(temp_path);
 }

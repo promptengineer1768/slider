@@ -42,8 +42,9 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 Source: "{#BuildDir}\bin\{#AppExeName}"; DestDir: "{app}\bin"; Flags: ignoreversion
 Source: "{#BuildDir}\bin\*.dll"; DestDir: "{app}\bin"; Flags: ignoreversion skipifsourcedoesntexist
-; Only ship runtime assets from bin/resources (sounds). Icon sources are handled separately.
+; Only ship runtime assets from bin/resources (sounds + theme config). Icon sources are handled separately.
 Source: "{#BuildDir}\bin\resources\*.wav"; DestDir: "{app}\bin\resources"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "{#BuildDir}\bin\resources\themes.json"; DestDir: "{app}\bin\resources"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "..\resources\icon.ico"; DestDir: "{app}\bin"; Flags: ignoreversion
 
 [Icons]

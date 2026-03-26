@@ -38,6 +38,7 @@ endif()
 file(COPY
     "${CMAKE_SOURCE_DIR}/resources/slide.wav"
     "${CMAKE_SOURCE_DIR}/resources/complete.wav"
+    "${CMAKE_SOURCE_DIR}/resources/themes.json"
     DESTINATION "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources"
 )
 
@@ -47,11 +48,13 @@ if(WIN32)
     configure_file(src/app/slider.rc.in "${CMAKE_BINARY_DIR}/slider.rc")
     add_executable(slider WIN32
         src/app/wx_app.cc
+        src/app/game_controller.cc
         "${CMAKE_BINARY_DIR}/slider.rc"
     )
 else()
     add_executable(slider
         src/app/wx_app.cc
+        src/app/game_controller.cc
     )
     if(APPLE)
         set_target_properties(slider PROPERTIES MACOSX_BUNDLE TRUE)
@@ -79,12 +82,14 @@ if(SLIDER_BUILD_TESTS)
 
     add_executable(slider_tests
         tests/unit/board_test.cc
+        tests/unit/game_controller_test.cc
         tests/unit/solver_test.cc
         tests/unit/scrambler_test.cc
         tests/unit/gui_logic_test.cc
         tests/unit/serialization_test.cc
         tests/unit/state_validity_test.cc
         tests/unit/savefile_test.cc
+        src/app/game_controller.cc
     )
     target_link_libraries(slider_tests
         PRIVATE GTest::gtest_main GTest::gtest slider_core
@@ -112,6 +117,7 @@ if(TARGET slider)
         install(FILES
             ${CMAKE_SOURCE_DIR}/resources/slide.wav
             ${CMAKE_SOURCE_DIR}/resources/complete.wav
+            ${CMAKE_SOURCE_DIR}/resources/themes.json
             DESTINATION bin/resources
         )
     else()

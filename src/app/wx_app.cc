@@ -12,9 +12,8 @@
 #include <wx/stopwatch.h>
 
 #include "slider/board.h"
-#include "slider/savefile.h"
-#include "slider/solver.h"
-#include "slider/scrambler.h"
+#include "slider/game_controller.h"
+#include "slider/theme.h"
 
 #include <vector>
 #include <string>
@@ -24,13 +23,9 @@
 #include <functional>
 
 using slider::Board;
-using slider::BoardState;
 using slider::Direction;
-using slider::LoadBoardStateFromFile;
-using slider::SaveBoardStateToFile;
-using slider::SaveFileOptions;
-using slider::Scrambler;
-using slider::Solver;
+using slider::GameController;
+using slider::ThemeSpec;
 
 static std::filesystem::path WxPathToFsPath(const wxString& path) {
 #if defined(_WIN32)
@@ -38,6 +33,11 @@ static std::filesystem::path WxPathToFsPath(const wxString& path) {
 #else
   return std::filesystem::path(path.ToStdString());
 #endif
+}
+
+static std::filesystem::path GetExecutableDirectory() {
+  wxFileName exe_path(wxStandardPaths::Get().GetExecutablePath());
+  return WxPathToFsPath(exe_path.GetPath());
 }
 
 struct Theme {
@@ -50,13 +50,30 @@ struct Theme {
   wxColour bg_secondary;
 };
 
-const std::vector<Theme> kThemes = {
-    {"Ocean", wxColour(0, 102, 204), wxColour(51, 153, 255), wxColour(0, 51, 153), *wxWHITE, wxColour(240, 248, 255), wxColour(176, 196, 222)},
-    {"Forest", wxColour(34, 139, 34), wxColour(50, 205, 50), wxColour(0, 100, 0), *wxWHITE, wxColour(245, 255, 250), wxColour(143, 188, 143)},
-    {"Lava", wxColour(255, 69, 0), wxColour(255, 140, 0), wxColour(139, 0, 0), *wxWHITE, wxColour(255, 245, 238), wxColour(255, 218, 185)},
-    {"Modern", wxColour(60, 60, 60), wxColour(100, 100, 100), wxColour(30, 30, 30), *wxWHITE, wxColour(240, 240, 240), wxColour(200, 200, 200)},
-    {"Cyber", wxColour(128, 0, 128), wxColour(255, 0, 255), wxColour(75, 0, 130), *wxCYAN, wxColour(10, 10, 10), wxColour(40, 40, 40)}
-};
+static wxColour ToWxColour(const slider::ColorRGBA& c) {
+  return wxColour(c.r, c.g, c.b, c.a);
+}
+
+static Theme ToTheme(const ThemeSpec& spec) {
+  return Theme{
+      wxString::FromUTF8(spec.name),
+      ToWxColour(spec.tile_color),
+      ToWxColour(spec.tile_highlight),
+      ToWxColour(spec.tile_shadow),
+      ToWxColour(spec.text_color),
+      ToWxColour(spec.bg_primary),
+      ToWxColour(spec.bg_secondary),
+  };
+}
+
+static std::vector<Theme> ConvertThemes(const std::vector<ThemeSpec>& specs) {
+  std::vector<Theme> themes;
+  themes.reserve(specs.size());
+  for (const auto& spec : specs) {
+    themes.push_back(ToTheme(spec));
+  }
+  return themes;
+}
 
 wxString ResolveSoundPath(const wxString& filename) {
   wxFileName exe_path(wxStandardPaths::Get().GetExecutablePath());
@@ -90,8 +107,8 @@ wxString ResolveSoundPath(const wxString& filename) {
 
 class BoardPanel : public wxPanel {
  public:
-  BoardPanel(wxWindow* parent, Board* board)
-      : wxPanel(parent), board_(board), theme_index_(0) {
+  BoardPanel(wxWindow* parent, Board* board, const std::vector<Theme>* themes)
+      : wxPanel(parent), board_(board), themes_(themes), theme_index_(0) {
     SetBackgroundStyle(wxBG_STYLE_PAINT);
     Bind(wxEVT_PAINT, &BoardPanel::OnPaint, this);
     Bind(wxEVT_LEFT_DOWN, &BoardPanel::OnMouseDown, this);
@@ -106,7 +123,7 @@ class BoardPanel : public wxPanel {
   }
 
   void SetTheme(int index) {
-    if (index >= 0 && index < static_cast<int>(kThemes.size())) {
+    if (themes_ && index >= 0 && index < static_cast<int>(themes_->size())) {
       theme_index_ = index;
       Refresh();
     }
@@ -128,7 +145,8 @@ class BoardPanel : public wxPanel {
  private:
   void OnPaint(wxPaintEvent& /*event*/) {
     wxAutoBufferedPaintDC dc(this);
-    const Theme& theme = kThemes[theme_index_];
+    if (!themes_ || themes_->empty()) return;
+    const Theme& theme = (*themes_)[theme_index_];
     
     wxRect client_rect = GetClientRect();
     dc.GradientFillLinear(client_rect, theme.bg_primary, theme.bg_secondary, wxSOUTH);
@@ -308,6 +326,7 @@ class BoardPanel : public wxPanel {
   }
 
   Board* board_;
+  const std::vector<Theme>* themes_ = nullptr;
   int theme_index_ = 0;
   wxTimer animation_timer_;
   bool animating_ = false;
@@ -322,7 +341,8 @@ class BoardPanel : public wxPanel {
 class SliderFrame : public wxFrame {
  public:
   SliderFrame() : wxFrame(nullptr, wxID_ANY, "Sliding Puzzle", wxDefaultPosition, wxSize(600, 700)) {
-    board_ = std::make_unique<Board>(3);
+    controller_ = GameController(GetExecutableDirectory());
+    themes_ = ConvertThemes(controller_.GetThemes());
     SetupMenu();
     SetupUI();
     
@@ -361,9 +381,13 @@ class SliderFrame : public wxFrame {
     sizeMenu->AppendRadioItem(10005, "5x5 Variation");
 
     auto* themeMenu = new wxMenu;
-    for (int i = 0; i < static_cast<int>(kThemes.size()); ++i) {
-      themeMenu->AppendRadioItem(20000 + i, kThemes[i].name);
-      Bind(wxEVT_MENU, [this, i](wxCommandEvent&) { board_panel_->SetTheme(i); }, 20000 + i);
+    for (int i = 0; i < static_cast<int>(themes_.size()); ++i) {
+      themeMenu->AppendRadioItem(20000 + i, themes_[i].name);
+      Bind(wxEVT_MENU, [this, i](wxCommandEvent&) {
+        if (controller_.SetThemeIndex(i)) {
+          board_panel_->SetTheme(i);
+        }
+      }, 20000 + i);
     }
 
     auto* helpMenu = new wxMenu;
@@ -379,7 +403,7 @@ class SliderFrame : public wxFrame {
 
   void SetupUI() {
     auto* mainSizer = new wxBoxSizer(wxVERTICAL);
-    board_panel_ = new BoardPanel(this, board_.get());
+    board_panel_ = new BoardPanel(this, &controller_.GetBoard(), &themes_);
     mainSizer->Add(board_panel_, 1, wxEXPAND | wxALL, 10);
 
     auto* controlSizer = new wxBoxSizer(wxHORIZONTAL);
@@ -402,11 +426,10 @@ class SliderFrame : public wxFrame {
   }
 
   void OnNewGame(wxCommandEvent& /*event*/) {
-    int size = board_->GetSize();
-    auto new_board = std::make_unique<Board>(size);
-    board_panel_->SetBoard(new_board.get());
-    board_ = std::move(new_board);
-    optimal_moves_ = -1;
+    controller_.NewGame();
+    board_panel_->SetBoard(&controller_.GetBoard());
+    controller_.ResetOptimalMoves();
+    auto_moves_.clear();
     auto_play_slide_sound_ = true;
     UpdateStatus();
   }
@@ -414,9 +437,9 @@ class SliderFrame : public wxFrame {
   void OnSaveGame(wxCommandEvent& /*event*/) {
     wxFileDialog saveFileDialog(this, "Save Game State", "", "game.sav", "Save files (*.sav)|*.sav", wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
     if (saveFileDialog.ShowModal() == wxID_CANCEL) return;
-    std::string err;
-    if (!SaveBoardStateToFile(WxPathToFsPath(saveFileDialog.GetPath()), board_->GetState(), &err)) {
-      wxMessageBox(err, "Error", wxOK | wxICON_ERROR);
+    const auto result = controller_.SaveGame(WxPathToFsPath(saveFileDialog.GetPath()));
+    if (!result.first) {
+      wxMessageBox(result.second, "Error", wxOK | wxICON_ERROR);
     }
   }
 
@@ -424,15 +447,14 @@ class SliderFrame : public wxFrame {
     wxFileDialog openFileDialog(this, "Open Game State", "", "", "Save files (*.sav)|*.sav", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
     if (openFileDialog.ShowModal() == wxID_CANCEL) return;
 
-    std::string err;
-    SaveFileOptions options;
-    auto loaded = LoadBoardStateFromFile(WxPathToFsPath(openFileDialog.GetPath()), options, &err);
-    if (loaded) {
-      board_->SetState(*loaded);
+    const auto result = controller_.LoadGame(WxPathToFsPath(openFileDialog.GetPath()));
+    if (result.first) {
+      board_panel_->SetBoard(&controller_.GetBoard());
       board_panel_->Refresh();
+      auto_moves_.clear();
       UpdateStatus();
     } else {
-      wxMessageBox(err.empty() ? "Invalid save file" : err, "Error", wxOK | wxICON_ERROR);
+      wxMessageBox(result.second.empty() ? "Invalid save file" : result.second, "Error", wxOK | wxICON_ERROR);
     }
   }
 
@@ -456,17 +478,17 @@ class SliderFrame : public wxFrame {
   }
 
   void ChangeSize(int size) {
-    auto new_board = std::make_unique<Board>(size);
-    board_panel_->SetBoard(new_board.get());
-    board_ = std::move(new_board);
-    optimal_moves_ = -1;
+    controller_.ChangeSize(size);
+    board_panel_->SetBoard(&controller_.GetBoard());
+    controller_.ResetOptimalMoves();
+    auto_moves_.clear();
     auto_play_slide_sound_ = true;
     UpdateStatus();
   }
 
   void OnTileClicked(wxCommandEvent& event) {
     int tile_val = event.GetInt();
-    auto dir = board_->GetDirectionToMoveTile(tile_val);
+    auto dir = controller_.GetBoard().GetDirectionToMoveTile(tile_val);
     if (dir) {
       PerformMove(*dir, tile_val, 0.2, false, true);
     }
@@ -475,12 +497,12 @@ class SliderFrame : public wxFrame {
   // Instant (no animation) move for testing / solver step-through.
   // Returns true if the tile moved successfully.
   bool InstantMove(int tile_val) {
-    auto dir = board_->GetDirectionToMoveTile(tile_val);
+    auto dir = controller_.GetBoard().GetDirectionToMoveTile(tile_val);
     if (!dir) return false;
-    board_->Move(*dir);
+    controller_.Move(*dir);
     board_panel_->Refresh();
     UpdateStatus();
-    if (board_->IsSolved()) {
+    if (controller_.GetBoard().IsSolved()) {
       PlaySoundEffect("complete.wav", true);
       wxMessageBox("Puzzle Solved!", "Congratulations", wxOK | wxICON_INFORMATION);
     }
@@ -505,18 +527,18 @@ class SliderFrame : public wxFrame {
     }
     
     completion_callback_ = [this, dir, is_auto]() {
-      board_->Move(dir);
+      controller_.Move(dir);
       board_panel_->Refresh();  // repaint AFTER board state has changed
       UpdateStatus();
-      if (!is_scrambling_ && board_->IsSolved()) {
+      if (!controller_.IsScrambling() && controller_.GetBoard().IsSolved()) {
         PlaySoundEffect("complete.wav", true);
         wxMessageBox("Puzzle Solved!", "Congratulations", wxOK | wxICON_INFORMATION);
       }
       if (is_auto && !auto_moves_.empty()) {
         ProcessNextAutoMove();
-      } else if (is_auto && auto_moves_.empty() && is_scrambling_) {
-        is_scrambling_ = false;
-        board_->ResetMoveCount();
+      } else if (is_auto && auto_moves_.empty() && controller_.IsScrambling()) {
+        controller_.SetScrambling(false);
+        controller_.GetBoard().ResetMoveCount();
         UpdateStatus();
       }
     };
@@ -527,44 +549,38 @@ class SliderFrame : public wxFrame {
 
   void OnScramble(wxCommandEvent& /*event*/) {
     if (board_panel_->IsAnimating()) return;
-    int scramble_steps = board_->GetSize() == 5 ? 60 : 30;
-    auto moves = Scrambler::Scramble(*board_, scramble_steps);
-    int size = board_->GetSize();
-    auto new_board = std::make_unique<Board>(size);
-    board_panel_->SetBoard(new_board.get());
-    board_ = std::move(new_board);
+    int scramble_steps = controller_.GetBoard().GetSize() == 5 ? 60 : 30;
+    auto moves = controller_.Scramble(scramble_steps);
+    board_panel_->SetBoard(&controller_.GetBoard());
     auto_moves_ = moves;
     auto_duration_ = 0.05; // Slightly faster for scrambling
     auto_play_slide_sound_ = false;
-    is_scrambling_ = true;
-    
-    Board temp_board = *board_;
-    for(auto d : moves) temp_board.Move(d);
-    auto sol = Solver::Solve(temp_board.GetState());
-    optimal_moves_ = sol.success ? static_cast<int>(sol.moves.size()) : -1;
+    controller_.SetScrambling(true);
+    auto sol = controller_.Solve();
+    controller_.SetOptimalMoves(sol ? static_cast<int>(sol->size()) : -1);
     ProcessNextAutoMove();
   }
 
   void OnSolve4(wxCommandEvent& /*event*/) {
     if (board_panel_->IsAnimating()) return;
-    auto sol = Solver::SolveNSteps(board_->GetState(), 4);
-    if (sol.success) {
-      auto_moves_ = sol.moves;
+    auto sol = controller_.SolveNSteps(4);
+    if (sol) {
+      auto_moves_ = *sol;
       auto_duration_ = 0.5;
       auto_play_slide_sound_ = true;
-      is_scrambling_ = false; 
+      controller_.SetScrambling(false);
       ProcessNextAutoMove();
     }
   }
 
   void OnSolve(wxCommandEvent& /*event*/) {
     if (board_panel_->IsAnimating()) return;
-    auto sol = Solver::Solve(board_->GetState());
-    if (sol.success) {
-      auto_moves_ = sol.moves;
+    auto sol = controller_.Solve();
+    if (sol) {
+      auto_moves_ = *sol;
       auto_duration_ = 0.5;
       auto_play_slide_sound_ = true;
-      is_scrambling_ = false;
+      controller_.SetScrambling(false);
       ProcessNextAutoMove();
     } else {
       wxMessageBox("Solver could not find a solution in reasonable time.", "Info");
@@ -572,13 +588,13 @@ class SliderFrame : public wxFrame {
   }
 
   void ProcessNextAutoMove() {
-    if (auto_moves_.empty() || !board_) return;
+    if (auto_moves_.empty()) return;
     Direction dir = auto_moves_.front();
     auto_moves_.erase(auto_moves_.begin());
     
-    int size = board_->GetSize();
-    int empty_pos = board_->GetState().GetEmptyPos();
-    if (empty_pos < 0 || empty_pos >= static_cast<int>(board_->GetState().GetTiles().size())) return;
+    int size = controller_.GetBoard().GetSize();
+    int empty_pos = controller_.GetBoard().GetState().GetEmptyPos();
+    if (empty_pos < 0 || empty_pos >= static_cast<int>(controller_.GetBoard().GetState().GetTiles().size())) return;
 
     int r = empty_pos / size;
     int c = empty_pos % size;
@@ -592,11 +608,11 @@ class SliderFrame : public wxFrame {
     
     if (tr >= 0 && tr < size && tc >= 0 && tc < size) {
       int tile_pos = tr * size + tc;
-      const auto& tiles = board_->GetState().GetTiles();
+      const auto& tiles = controller_.GetBoard().GetState().GetTiles();
       if (tile_pos >= 0 && tile_pos < static_cast<int>(tiles.size())) {
         int tile_val = tiles[tile_pos];
         PerformMove(dir, tile_val, auto_duration_, true,
-                    auto_play_slide_sound_ && !is_scrambling_);
+                    auto_play_slide_sound_ && !controller_.IsScrambling());
       }
     } else {
       if (!auto_moves_.empty()) ProcessNextAutoMove();
@@ -604,11 +620,12 @@ class SliderFrame : public wxFrame {
   }
 
   void UpdateStatus() {
-    wxString opt = optimal_moves_ >= 0 ? wxString::Format("%d", optimal_moves_) : wxString("?");
-    status_text_->SetLabel(wxString::Format("Moves: %d | Optimal: %s", board_->GetMoveCount(), opt));
+    wxString opt = controller_.GetOptimalMoves() >= 0 ? wxString::Format("%d", controller_.GetOptimalMoves()) : wxString("?");
+    status_text_->SetLabel(wxString::Format("Moves: %d | Optimal: %s", controller_.GetBoard().GetMoveCount(), opt));
   }
 
-  std::unique_ptr<Board> board_;
+  GameController controller_;
+  std::vector<Theme> themes_;
   BoardPanel* board_panel_ = nullptr;
   wxStaticText* status_text_ = nullptr;
   wxButton* scramble_btn_ = nullptr;
@@ -618,9 +635,7 @@ class SliderFrame : public wxFrame {
   double auto_duration_ = 0.5;
   bool auto_play_slide_sound_ = true;
   wxTimer sound_stop_timer_;
-  int optimal_moves_ = -1;
   std::function<void()> completion_callback_;
-  bool is_scrambling_ = false;
 };
 
 class SliderApp : public wxApp {

@@ -7,16 +7,19 @@
 namespace slider {
 
 BoardState::BoardState(int size, const std::vector<int>& tiles)
-    : size_(size), tiles_(tiles) {}
+    : size_(size), tiles_(tiles) {
+  RebuildTilePositionCache();
+}
 
 int BoardState::GetEmptyPos() const {
-  for (size_t i = 0; i < tiles_.size(); ++i) {
-    if (tiles_[i] == 0) {
-      if (i > static_cast<size_t>(std::numeric_limits<int>::max())) return -1;
-      return static_cast<int>(i);
-    }
-  }
-  return -1;
+  return GetTilePos(0);
+}
+
+int BoardState::GetTilePos(int tile_value) const {
+  const auto it = tile_positions_.find(tile_value);
+  if (it == tile_positions_.end()) return -1;
+  if (it->second > static_cast<size_t>(std::numeric_limits<int>::max())) return -1;
+  return static_cast<int>(it->second);
 }
 
 bool BoardState::SwapTiles(int pos_a, int pos_b) {
@@ -25,6 +28,10 @@ bool BoardState::SwapTiles(int pos_a, int pos_b) {
   const size_t b = static_cast<size_t>(pos_b);
   if (a >= tiles_.size() || b >= tiles_.size()) return false;
   std::swap(tiles_[a], tiles_[b]);
+  const int tile_a = tiles_[a];
+  const int tile_b = tiles_[b];
+  tile_positions_[tile_a] = a;
+  tile_positions_[tile_b] = b;
   return true;
 }
 
@@ -118,6 +125,13 @@ BoardState BoardState::Deserialize(const std::string& data) {
   BoardState state(size, tiles);
   if (!state.IsValid()) return BoardState();
   return state;
+}
+
+void BoardState::RebuildTilePositionCache() {
+  tile_positions_.clear();
+  for (size_t i = 0; i < tiles_.size(); ++i) {
+    tile_positions_[tiles_[i]] = i;
+  }
 }
 
 } // namespace slider
