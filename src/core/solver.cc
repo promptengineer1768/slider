@@ -92,8 +92,8 @@ struct BoardStateHash {
   size_t operator()(const BoardState& s) const noexcept {
     constexpr size_t kHashSeed = 1469598103934665603ull;
     constexpr size_t kHashMix = 0x9e3779b97f4a7c15ull;
-    auto mix = [kHashMix](size_t& seed, size_t value) {
-      seed ^= value + kHashMix + (seed << 6) + (seed >> 2);
+    auto mix = [](size_t& seed, size_t value) {
+      seed ^= value + 0x9e3779b97f4a7c15ull + (seed << 6) + (seed >> 2);
     };
 
     size_t h = kHashSeed;
