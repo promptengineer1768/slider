@@ -428,7 +428,8 @@ class SliderFrame : public wxFrame {
 
   void OnScramble(wxCommandEvent& /*event*/) {
     if (board_panel_->IsAnimating()) return;
-    auto moves = Scrambler::Scramble(*board_, 30);
+    int scramble_steps = board_->GetSize() == 5 ? 60 : 30;
+    auto moves = Scrambler::Scramble(*board_, scramble_steps);
     int size = board_->GetSize();
     board_ = std::make_unique<Board>(size);
     board_panel_->SetBoard(board_.get()); // Fix dangling pointer!
