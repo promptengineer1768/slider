@@ -2,14 +2,14 @@
 ; This script creates a Windows installer for the Slider game
 
 #define AppName "Sliding Puzzle"
-#define AppVersion "1.0.0"
+#define AppVersion "1.0.1"
 #define AppPublisher "Sliding Puzzle Team"
 #define AppURL "https://github.com/promptengineer1768/slider"
 #define AppExeName "slider.exe"
 #define BuildDir "..\build\windows-msvc-release"
 
 [Setup]
-AppId={{e8d2e8b6-94e2-45a7-93e1-32c589b9f911}
+AppId={{e8d2e8b6-94e2-45a7-93e1-32c589b9f911}}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher={#AppPublisher}

@@ -1,0 +1,189 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-msvc:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    env:
+      VCPKG_INSTALLATION_ROOT: C:\vcpkg
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: ilammy/msvc-dev-cmd@a102174a2b586eec2ea151a69e6fd14404a8ce7c # v1.13.0
+        with:
+          arch: x64
+
+      - name: Install tools
+        run: choco install cmake ninja wixtoolset innosetup -y
+
+      - name: Bootstrap vcpkg
+        shell: pwsh
+        run: |
+          $vcpkgRoot = $env:VCPKG_INSTALLATION_ROOT
+          if (-not (Test-Path $vcpkgRoot)) {
+            git clone https://github.com/microsoft/vcpkg.git $vcpkgRoot
+          }
+          Push-Location $vcpkgRoot
+          .\bootstrap-vcpkg.bat
+          Pop-Location
+
+      - name: Cache vcpkg
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          path: |
+            ${{ env.VCPKG_INSTALLATION_ROOT }}/installed
+            ${{ env.VCPKG_INSTALLATION_ROOT }}/archives
+          key: ${{ runner.os }}-vcpkg-release-${{ hashFiles('vcpkg.json') }}
+
+      - name: Configure
+        run: cmake --preset windows-msvc-release
+
+      - name: Build
+        run: cmake --build --preset build-windows-msvc-release
+
+      - name: Package (ZIP)
+        run: |
+          cd build/windows-msvc-release
+          cpack -G ZIP
+
+      - name: Package (MSI)
+        run: |
+          cd build/windows-msvc-release
+          cpack -G WIX
+
+      - name: Package (Inno Setup)
+        run: |
+          $env:Path = "C:\Program Files (x86)\Inno Setup 6;$env:Path"
+          ISCC.exe installer/slider.iss
+
+      - name: Organize packages
+        run: |
+          New-Item -ItemType Directory -Force -Path dist/windows | Out-Null
+          Move-Item dist/*.zip dist/windows/ -ErrorAction SilentlyContinue
+          Move-Item dist/*.msi dist/windows/ -ErrorAction SilentlyContinue
+          Move-Item dist/*.exe dist/windows/ -ErrorAction SilentlyContinue
+
+      - name: Draft Release
+        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2.6.1
+        with:
+          files: dist/windows/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  linux-clang:
+    runs-on: ubuntu-24.04
+    needs: windows-msvc
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build clang-19 clang-tools-19 libwxgtk3.2-dev libgtk-3-dev libgtest-dev rpm file
+
+      - name: Configure
+        run: cmake --preset linux-clang-release -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19
+
+      - name: Build
+        run: cmake --build --preset build-linux-clang-release
+
+      - name: Package (CPack)
+        run: |
+          cd build/linux-clang-release
+          cpack -G "TGZ;DEB;RPM"
+
+      - name: Organize packages
+        run: |
+          mkdir -p dist/linux
+          mv dist/*.tar.gz dist/linux/ 2>/dev/null || true
+          mv dist/*.deb dist/linux/ 2>/dev/null || true
+          mv dist/*.rpm dist/linux/ 2>/dev/null || true
+
+      - name: Draft Release
+        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2.6.1
+        with:
+          files: dist/linux/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  macos-clang:
+    runs-on: macos-latest
+    needs: windows-msvc
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install dependencies
+        run: |
+          brew update
+          brew install cmake ninja wxwidgets googletest
+
+      - name: Configure
+        run: cmake --preset macos-clang-release
+
+      - name: Build
+        run: cmake --build --preset build-macos-clang-release
+
+      - name: Package
+        run: |
+          cd build/macos-clang-release
+          cpack -G "DragNDrop;TGZ"
+
+      - name: Organize packages
+        run: |
+          mkdir -p dist/macos
+          mv dist/*.dmg dist/macos/ 2>/dev/null || true
+          mv dist/*.tar.gz dist/macos/ 2>/dev/null || true
+
+      - name: Draft Release
+        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2.6.1
+        with:
+          files: dist/macos/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  release-checksums:
+    runs-on: ubuntu-24.04
+    needs: [windows-msvc, linux-clang, macos-clang]
+    permissions:
+      contents: write
+    steps:
+      - name: Generate SHA256.txt
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p release-assets
+          gh release download "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --dir release-assets --pattern "*"
+          find release-assets -maxdepth 1 -type f ! -name 'SHA256.txt' -print0 \
+            | sort -z \
+            | xargs -0 sha256sum > SHA256.txt
+          if [ ! -s SHA256.txt ]; then
+            echo "No release assets found to hash." >&2
+            exit 1
+          fi
+
+      - name: Upload SHA256.txt
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" SHA256.txt --clobber
