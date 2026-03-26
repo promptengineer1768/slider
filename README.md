@@ -2,6 +2,8 @@
 
 Slider is a polished sliding puzzle game. Move the tiles into order, choose a board size, and use the built-in solver when you want a little help. It adds colorful visual themes and a smooth, easy way to enjoy the classic 15-puzzle.
 
+![Slider screenshot](screenshot.jpg)
+
 ## Download for Windows
 
 - [Windows installer](https://github.com/promptengineer1768/slider/releases/download/v1.0.0/slider-1.0.0-win64.exe)
