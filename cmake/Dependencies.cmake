@@ -18,3 +18,4 @@ endif()
 if(SLIDER_BUILD_TESTS)
     find_package(GTest CONFIG REQUIRED)
 endif()
+
