@@ -9,6 +9,7 @@
 #include <wx/graphics.h>
 #include <wx/dcclient.h>
 #include <wx/aboutdlg.h>
+#include <wx/stopwatch.h>
 
 #include "slider/board.h"
 #include "slider/solver.h"
@@ -67,6 +68,7 @@ wxString ResolveSoundPath(const wxString& filename) {
     return cwd_resource_path.GetFullPath();
   }
 
+  wxLogWarning("Sound file not found: %s", filename);
   return {};
 }
 
@@ -98,7 +100,8 @@ class BoardPanel : public wxPanel {
     anim_dir_ = dir;
     anim_tile_ = tile_val;
     anim_progress_ = 0.0;
-    anim_step_ = 0.016 / duration_s; // ~60fps
+    anim_duration_s_ = duration_s;
+    anim_stopwatch_.Start();
     animating_ = true;
     completion_event_ = completion_event;
     animation_timer_.Start(16);
@@ -267,7 +270,8 @@ class BoardPanel : public wxPanel {
   }
 
   void OnTimer(wxTimerEvent& /*event*/) {
-    anim_progress_ += anim_step_;
+    const double elapsed_s = static_cast<double>(anim_stopwatch_.Time()) / 1000.0;
+    anim_progress_ = (anim_duration_s_ > 0.0) ? (elapsed_s / anim_duration_s_) : 1.0;
     if (anim_progress_ >= 1.0) {
       anim_progress_ = 1.0;
       animating_ = false;
@@ -276,8 +280,8 @@ class BoardPanel : public wxPanel {
       // with animating_=false BUT the old board state for 1 frame, causing a visual flash.
       // The completion event handler will update the board data and call Refresh().
       if (completion_event_) {
-        GetParent()->GetEventHandler()->AddPendingEvent(*completion_event_);
-        delete completion_event_;
+        // Transfer ownership to wxWidgets; it will delete the event after processing.
+        wxQueueEvent(GetParent()->GetEventHandler(), completion_event_);
         completion_event_ = nullptr;
       } else {
         Refresh();
@@ -294,7 +298,8 @@ class BoardPanel : public wxPanel {
   Direction anim_dir_;
   int anim_tile_ = -1;
   double anim_progress_ = 0.0;
-  double anim_step_ = 0.1;
+  double anim_duration_s_ = 0.0;
+  wxStopWatch anim_stopwatch_;
   wxCommandEvent* completion_event_ = nullptr;
 };
 
@@ -399,8 +404,34 @@ class SliderFrame : public wxFrame {
   void OnLoadGame(wxCommandEvent& /*event*/) {
     wxFileDialog openFileDialog(this, "Open Game State", "", "", "Save files (*.sav)|*.sav", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
     if (openFileDialog.ShowModal() == wxID_CANCEL) return;
-    std::ifstream is(openFileDialog.GetPath().ToStdString());
-    std::string content((std::istreambuf_iterator<char>(is)), std::istreambuf_iterator<char>());
+
+    const size_t kMaxSaveSize = 1024 * 10; // 10KB
+    const std::string path = openFileDialog.GetPath().ToStdString();
+    std::error_code ec;
+    const auto file_size = std::filesystem::file_size(path, ec);
+    if (ec) {
+      wxMessageBox("Could not read save file size", "Error", wxOK | wxICON_ERROR);
+      return;
+    }
+    if (static_cast<size_t>(file_size) > kMaxSaveSize) {
+      wxMessageBox("Save file too large", "Error", wxOK | wxICON_ERROR);
+      return;
+    }
+
+    std::ifstream is(path, std::ios::binary);
+    if (!is) {
+      wxMessageBox("Could not open save file", "Error", wxOK | wxICON_ERROR);
+      return;
+    }
+    std::string content;
+    content.resize(static_cast<size_t>(file_size));
+    if (!content.empty()) {
+      is.read(content.data(), static_cast<std::streamsize>(content.size()));
+      if (!is) {
+        wxMessageBox("Could not read save file", "Error", wxOK | wxICON_ERROR);
+        return;
+      }
+    }
     auto state = BoardState::Deserialize(content);
     if (state.IsValid()) {
       board_->SetState(state);
@@ -418,7 +449,7 @@ class SliderFrame : public wxFrame {
     info.SetName("Sliding Puzzle");
     info.SetVersion("1.0");
     info.SetDescription("A beautiful, cross-platform 15-puzzle game featuring dynamic visual themes\nand an algorithmic solver to find the optimal path in real-time.");
-    info.SetCopyright(wxString::FromUTF8("\xc2\xa9 2026 George Taylor"));
+    info.SetCopyright(L"\u00A9 2026 George Taylor");
     wxAboutBox(info);
   }
 

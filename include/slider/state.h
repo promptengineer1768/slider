@@ -15,7 +15,8 @@ class BoardState {
   int GetSize() const { return size_; }
   const std::vector<int>& GetTiles() const { return tiles_; }
   int GetEmptyPos() const;
-  
+  bool SwapTiles(int pos_a, int pos_b);
+   
   bool IsSolved() const;
   bool IsValid() const;
 

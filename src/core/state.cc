@@ -16,6 +16,15 @@ int BoardState::GetEmptyPos() const {
   return -1;
 }
 
+bool BoardState::SwapTiles(int pos_a, int pos_b) {
+  if (pos_a < 0 || pos_b < 0) return false;
+  const size_t a = static_cast<size_t>(pos_a);
+  const size_t b = static_cast<size_t>(pos_b);
+  if (a >= tiles_.size() || b >= tiles_.size()) return false;
+  std::swap(tiles_[a], tiles_[b]);
+  return true;
+}
+
 bool BoardState::IsSolved() const {
   if (tiles_.empty()) return false;
   // A solved state is 1, 2, ..., size*size-1, 0
@@ -94,11 +103,23 @@ BoardState BoardState::Deserialize(const std::string& data) {
   int size = 0;
   ss >> size;
   if (size <= 0) return BoardState();
-  std::vector<int> tiles(size * size);
-  for (int i = 0; i < size * size; ++i) {
-    if (!(ss >> tiles[i])) break;
+  const int tile_count = size * size;
+  if (tile_count <= 0) return BoardState();
+
+  std::vector<int> tiles;
+  tiles.reserve(static_cast<size_t>(tile_count));
+
+  for (int i = 0; i < tile_count; ++i) {
+    int v = 0;
+    if (!(ss >> v)) {
+      return BoardState();
+    }
+    tiles.push_back(v);
   }
-  return BoardState(size, tiles);
+
+  BoardState state(size, tiles);
+  if (!state.IsValid()) return BoardState();
+  return state;
 }
 
 } // namespace slider

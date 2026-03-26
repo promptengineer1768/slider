@@ -48,9 +48,9 @@ bool Board::Move(Direction dir) {
   }
 
   int target_pos = target_row * size + target_col;
-  std::vector<int> tiles = state_.GetTiles();
-  std::swap(tiles[empty_pos], tiles[target_pos]);
-  state_ = BoardState(size, tiles);
+  if (!state_.SwapTiles(empty_pos, target_pos)) {
+    return false;
+  }
   move_count_++;
   return true;
 }
