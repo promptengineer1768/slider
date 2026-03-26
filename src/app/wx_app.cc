@@ -12,6 +12,7 @@
 #include <wx/stopwatch.h>
 
 #include "slider/board.h"
+#include "slider/savefile.h"
 #include "slider/solver.h"
 #include "slider/scrambler.h"
 
@@ -20,10 +21,24 @@
 #include <memory>
 #include <algorithm>
 #include <filesystem>
-#include <fstream>
 #include <functional>
 
-using namespace slider;
+using slider::Board;
+using slider::BoardState;
+using slider::Direction;
+using slider::LoadBoardStateFromFile;
+using slider::SaveBoardStateToFile;
+using slider::SaveFileOptions;
+using slider::Scrambler;
+using slider::Solver;
+
+static std::filesystem::path WxPathToFsPath(const wxString& path) {
+#if defined(_WIN32)
+  return std::filesystem::path(path.ToStdWstring());
+#else
+  return std::filesystem::path(path.ToStdString());
+#endif
+}
 
 struct Theme {
   wxString name;
@@ -62,8 +77,9 @@ wxString ResolveSoundPath(const wxString& filename) {
     return cwd_path.GetFullPath();
   }
 
-  wxFileName cwd_resource_path(wxGetCwd(), filename);
+  wxFileName cwd_resource_path(wxGetCwd(), wxEmptyString);
   cwd_resource_path.AppendDir("resources");
+  cwd_resource_path.SetFullName(filename);
   if (cwd_resource_path.FileExists()) {
     return cwd_resource_path.GetFullPath();
   }
@@ -387,8 +403,9 @@ class SliderFrame : public wxFrame {
 
   void OnNewGame(wxCommandEvent& /*event*/) {
     int size = board_->GetSize();
-    board_ = std::make_unique<Board>(size);
-    board_panel_->SetBoard(board_.get());
+    auto new_board = std::make_unique<Board>(size);
+    board_panel_->SetBoard(new_board.get());
+    board_ = std::move(new_board);
     optimal_moves_ = -1;
     auto_play_slide_sound_ = true;
     UpdateStatus();
@@ -397,48 +414,25 @@ class SliderFrame : public wxFrame {
   void OnSaveGame(wxCommandEvent& /*event*/) {
     wxFileDialog saveFileDialog(this, "Save Game State", "", "game.sav", "Save files (*.sav)|*.sav", wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
     if (saveFileDialog.ShowModal() == wxID_CANCEL) return;
-    std::ofstream os(saveFileDialog.GetPath().ToStdString());
-    os << board_->GetState().Serialize();
+    std::string err;
+    if (!SaveBoardStateToFile(WxPathToFsPath(saveFileDialog.GetPath()), board_->GetState(), &err)) {
+      wxMessageBox(err, "Error", wxOK | wxICON_ERROR);
+    }
   }
 
   void OnLoadGame(wxCommandEvent& /*event*/) {
     wxFileDialog openFileDialog(this, "Open Game State", "", "", "Save files (*.sav)|*.sav", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
     if (openFileDialog.ShowModal() == wxID_CANCEL) return;
 
-    const size_t kMaxSaveSize = 1024 * 10; // 10KB
-    const std::string path = openFileDialog.GetPath().ToStdString();
-    std::error_code ec;
-    const auto file_size = std::filesystem::file_size(path, ec);
-    if (ec) {
-      wxMessageBox("Could not read save file size", "Error", wxOK | wxICON_ERROR);
-      return;
-    }
-    if (static_cast<size_t>(file_size) > kMaxSaveSize) {
-      wxMessageBox("Save file too large", "Error", wxOK | wxICON_ERROR);
-      return;
-    }
-
-    std::ifstream is(path, std::ios::binary);
-    if (!is) {
-      wxMessageBox("Could not open save file", "Error", wxOK | wxICON_ERROR);
-      return;
-    }
-    std::string content;
-    content.resize(static_cast<size_t>(file_size));
-    if (!content.empty()) {
-      is.read(content.data(), static_cast<std::streamsize>(content.size()));
-      if (!is) {
-        wxMessageBox("Could not read save file", "Error", wxOK | wxICON_ERROR);
-        return;
-      }
-    }
-    auto state = BoardState::Deserialize(content);
-    if (state.IsValid()) {
-      board_->SetState(state);
+    std::string err;
+    SaveFileOptions options;
+    auto loaded = LoadBoardStateFromFile(WxPathToFsPath(openFileDialog.GetPath()), options, &err);
+    if (loaded) {
+      board_->SetState(*loaded);
       board_panel_->Refresh();
       UpdateStatus();
     } else {
-      wxMessageBox("Invalid save file", "Error", wxOK | wxICON_ERROR);
+      wxMessageBox(err.empty() ? "Invalid save file" : err, "Error", wxOK | wxICON_ERROR);
     }
   }
 
@@ -462,8 +456,9 @@ class SliderFrame : public wxFrame {
   }
 
   void ChangeSize(int size) {
-    board_ = std::make_unique<Board>(size);
-    board_panel_->SetBoard(board_.get());
+    auto new_board = std::make_unique<Board>(size);
+    board_panel_->SetBoard(new_board.get());
+    board_ = std::move(new_board);
     optimal_moves_ = -1;
     auto_play_slide_sound_ = true;
     UpdateStatus();
@@ -535,8 +530,9 @@ class SliderFrame : public wxFrame {
     int scramble_steps = board_->GetSize() == 5 ? 60 : 30;
     auto moves = Scrambler::Scramble(*board_, scramble_steps);
     int size = board_->GetSize();
-    board_ = std::make_unique<Board>(size);
-    board_panel_->SetBoard(board_.get()); // Fix dangling pointer!
+    auto new_board = std::make_unique<Board>(size);
+    board_panel_->SetBoard(new_board.get());
+    board_ = std::move(new_board);
     auto_moves_ = moves;
     auto_duration_ = 0.05; // Slightly faster for scrambling
     auto_play_slide_sound_ = false;

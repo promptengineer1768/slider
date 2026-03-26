@@ -1,10 +1,10 @@
 # cmake/ProjectOptions.cmake
 # Build options and default settings.
 
-option(MARKDOWN_VIEWER_BUILD_TESTS "Build unit tests" ON)
-option(MARKDOWN_VIEWER_WARNINGS_AS_ERRORS "Treat warnings as errors" ON)
-option(MARKDOWN_VIEWER_ENABLE_SANITIZERS "Enable sanitizers (ASan, UBSan) in debug builds" OFF)
-option(MARKDOWN_VIEWER_ENABLE_I18N "Enable internationalization support" ON)
+option(SLIDER_BUILD_TESTS "Build unit tests" ON)
+option(SLIDER_WARNINGS_AS_ERRORS "Treat warnings as errors" ON)
+option(SLIDER_ENABLE_SANITIZERS "Enable sanitizers (ASan, UBSan) in debug builds" OFF)
+option(SLIDER_ENABLE_COVERAGE "Enable code coverage" OFF)
 
 set(CMAKE_CXX_STANDARD 20 CACHE STRING "C++ standard version")
 set(CMAKE_CXX_STANDARD_REQUIRED ON CACHE BOOL "Require C++ standard support")

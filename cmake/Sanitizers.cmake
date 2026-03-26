@@ -2,7 +2,7 @@
 # AddressSanitizer (ASan), UndefinedBehaviorSanitizer (UBSan), ThreadSanitizer (TSan)
 
 function(EnableSanitizers target)
-    if(NOT MARKDOWN_VIEWER_ENABLE_SANITIZERS)
+    if(NOT SLIDER_ENABLE_SANITIZERS)
         return()
     endif()
 

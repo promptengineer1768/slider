@@ -16,6 +16,7 @@ set(SLIDER_CORE_SOURCES
     src/core/solver.cc
     src/core/scrambler.cc
     src/core/state.cc
+    src/core/savefile.cc
 )
 
 add_library(slider_core STATIC ${SLIDER_CORE_SOURCES})
@@ -72,7 +73,6 @@ if(MSVC)
     target_compile_options(slider PRIVATE /utf-8)
 endif()
 
-option(SLIDER_BUILD_TESTS "Build tests" ON)
 if(SLIDER_BUILD_TESTS)
     enable_testing()
     include(GoogleTest)
@@ -82,6 +82,8 @@ if(SLIDER_BUILD_TESTS)
         tests/unit/solver_test.cc
         tests/unit/scrambler_test.cc
         tests/unit/gui_logic_test.cc
+        tests/unit/serialization_test.cc
+        tests/unit/state_validity_test.cc
     )
     target_link_libraries(slider_tests
         PRIVATE GTest::gtest_main GTest::gtest slider_core

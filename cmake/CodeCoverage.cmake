@@ -1,10 +1,12 @@
 # cmake/CodeCoverage.cmake
 # Code coverage configuration using gcov/lcov or coverage.py
 
-option(MARKDOWN_VIEWER_ENABLE_COVERAGE "Enable code coverage" OFF)
+if(NOT DEFINED SLIDER_ENABLE_COVERAGE)
+  option(SLIDER_ENABLE_COVERAGE "Enable code coverage" OFF)
+endif()
 
 function(EnableCoverage target)
-  if(NOT MARKDOWN_VIEWER_ENABLE_COVERAGE)
+  if(NOT SLIDER_ENABLE_COVERAGE)
     return()
   endif()
 
@@ -23,7 +25,7 @@ function(EnableCoverage target)
 endfunction()
 
 function(AddCoverageTarget)
-  if(NOT MARKDOWN_VIEWER_ENABLE_COVERAGE)
+  if(NOT SLIDER_ENABLE_COVERAGE)
     return()
   endif()
 

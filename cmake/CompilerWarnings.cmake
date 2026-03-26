@@ -2,7 +2,9 @@
 # Configures compiler warnings for a target.
 
 function(set_project_warnings target_name)
-  option(MARKDOWN_VIEWER_WARNINGS_AS_ERRORS "Treat warnings as errors" ON)
+  if(NOT DEFINED SLIDER_WARNINGS_AS_ERRORS)
+    option(SLIDER_WARNINGS_AS_ERRORS "Treat warnings as errors" ON)
+  endif()
 
   set(MSVC_WARNINGS
     /W4
@@ -23,7 +25,7 @@ function(set_project_warnings target_name)
     -Wno-missing-field-initializers
   )
 
-  if(MARKDOWN_VIEWER_WARNINGS_AS_ERRORS)
+  if(SLIDER_WARNINGS_AS_ERRORS)
     list(APPEND MSVC_WARNINGS /WX)
     list(APPEND CLANG_WARNINGS -Werror)
     list(APPEND GCC_WARNINGS -Werror)

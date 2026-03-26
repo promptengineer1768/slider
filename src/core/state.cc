@@ -2,7 +2,7 @@
 #include <vector>
 #include <algorithm>
 #include <sstream>
-#include <iostream>
+#include <limits>
 
 namespace slider {
 
@@ -11,7 +11,10 @@ BoardState::BoardState(int size, const std::vector<int>& tiles)
 
 int BoardState::GetEmptyPos() const {
   for (size_t i = 0; i < tiles_.size(); ++i) {
-    if (tiles_[i] == 0) return static_cast<int>(i);
+    if (tiles_[i] == 0) {
+      if (i > static_cast<size_t>(std::numeric_limits<int>::max())) return -1;
+      return static_cast<int>(i);
+    }
   }
   return -1;
 }
@@ -72,13 +75,14 @@ bool BoardState::IsValid() const {
   if (size_ % 2 != 0) {
     return inversions % 2 == 0;
   } else {
-    int empty_row_from_top = GetEmptyPos() / size_;
-    int empty_row_from_bottom = size_ - empty_row_from_top;
-    if (empty_row_from_bottom % 2 != 0) {
-      return inversions % 2 == 0;
-    } else {
-      return inversions % 2 != 0;
-    }
+    // Standard rule (goal blank at bottom-right):
+    // Let blank_row_from_bottom be 1-based (bottom row = 1).
+    // Puzzle solvable iff parity(inversions) != parity(blank_row_from_bottom).
+    const int empty_pos = GetEmptyPos();
+    if (empty_pos < 0) return false;
+    const int empty_row_from_top = empty_pos / size_; // 0-based
+    const int blank_row_from_bottom = size_ - empty_row_from_top; // 1..size
+    return (inversions % 2) != (blank_row_from_bottom % 2);
   }
 }
 

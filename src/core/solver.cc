@@ -1,11 +1,12 @@
 #include "slider/solver.h"
 #include <queue>
-#include <map>
+#include <unordered_map>
 #include <vector>
 #include <cmath>
 #include <set>
 #include <algorithm>
 #include <utility>
+#include <cstddef>
 
 namespace slider {
 
@@ -88,6 +89,23 @@ struct Node {
   }
 };
 
+struct BoardStateHash {
+  size_t operator()(const BoardState& s) const noexcept {
+    size_t h = 1469598103934665603ull;
+    auto mix = [&h](size_t v) {
+      // FNV-1a-ish mixing
+      h ^= v + 0x9e3779b97f4a7c15ull + (h << 6) + (h >> 2);
+    };
+
+    mix(static_cast<size_t>(s.GetSize()));
+    const auto& tiles = s.GetTiles();
+    for (int t : tiles) {
+      mix(static_cast<size_t>(t));
+    }
+    return h;
+  }
+};
+
 std::vector<Direction> GetValidMovesFromEmpty(int size, int empty_pos) {
   std::vector<Direction> moves;
   const int row = empty_pos / size;
@@ -128,10 +146,11 @@ bool TryApplyMove(BoardState* state, Direction dir) {
   return state->SwapTiles(empty_pos, target_pos);
 }
 
+template <typename CameFromMap>
 std::vector<Direction> ReconstructPath(
     const BoardState& start,
     BoardState current,
-    const std::map<BoardState, std::pair<BoardState, Direction>>& came_from) {
+    const CameFromMap& came_from) {
   std::vector<Direction> path;
 
   while (!(current == start)) {
@@ -159,8 +178,8 @@ Solution Solver::Solve(const BoardState& start_state, const SolverOptions& optio
   if (start_state.IsSolved()) return {{}, true};
 
   std::priority_queue<Node, std::vector<Node>, std::greater<Node>> open_set;
-  std::map<BoardState, int> g_score;
-  std::map<BoardState, std::pair<BoardState, Direction>> came_from;
+  std::unordered_map<BoardState, int, BoardStateHash> g_score;
+  std::unordered_map<BoardState, std::pair<BoardState, Direction>, BoardStateHash> came_from;
 
   open_set.push({start_state, 0, GetHeuristic(start_state)});
   g_score[start_state] = 0;

@@ -1,10 +1,16 @@
 #include "slider/board.h"
 #include <algorithm>
+#include <limits>
 #include <vector>
 
 namespace slider {
 
 Board::Board(int size) {
+  if (size <= 0) {
+    state_ = BoardState();
+    move_count_ = 0;
+    return;
+  }
   std::vector<int> tiles(size * size);
   for (int i = 0; i < size * size - 1; ++i) {
     tiles[i] = i + 1;
@@ -22,6 +28,7 @@ void Board::SetState(const BoardState& state) {
 bool Board::Move(Direction dir) {
   int size = state_.GetSize();
   int empty_pos = state_.GetEmptyPos();
+  if (size <= 0 || empty_pos < 0) return false;
   int row = empty_pos / size;
   int col = empty_pos % size;
 
@@ -68,6 +75,7 @@ std::vector<Direction> Board::GetValidMoves() const {
   std::vector<Direction> moves;
   int size = state_.GetSize();
   int empty_pos = state_.GetEmptyPos();
+  if (size <= 0 || empty_pos < 0) return moves;
   int row = empty_pos / size;
   int col = empty_pos % size;
 
@@ -82,9 +90,13 @@ std::vector<Direction> Board::GetValidMoves() const {
 std::optional<Direction> Board::GetDirectionToMoveTile(int tile_val) const {
   int size = state_.GetSize();
   const auto& tiles = state_.GetTiles();
+  if (size <= 0) return std::nullopt;
   int tile_pos = -1;
   for (size_t i = 0; i < tiles.size(); ++i) {
     if (tiles[i] == tile_val) {
+      if (i > static_cast<size_t>(std::numeric_limits<int>::max())) {
+        return std::nullopt;
+      }
       tile_pos = static_cast<int>(i);
       break;
     }
