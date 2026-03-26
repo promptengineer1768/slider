@@ -119,8 +119,32 @@ class BoardPanel : public wxPanel {
     int size = board_->GetSize();
     if (size <= 0) return;
 
-    int cell_w = client_rect.width / size;
-    int cell_h = client_rect.height / size;
+    // Setup high-quality graphics context
+    std::unique_ptr<wxGraphicsContext> gc(wxGraphicsContext::Create(dc));
+    if (!gc) return;
+
+    // 1. Draw Board Container (The Frame)
+    // We create a "well" that the tiles sit inside of.
+    wxRect board_rect = client_rect;
+    board_rect.Deflate(10);
+    
+    // Outer shadow for the board well
+    gc->SetBrush(gc->CreateBrush(wxBrush(wxColour(0, 0, 0, 40))));
+    gc->DrawRoundedRectangle(board_rect.x + 2, board_rect.y + 2, board_rect.width, board_rect.height, 15);
+    
+    // Board well background
+    wxGraphicsBrush bg_brush = gc->CreateLinearGradientBrush(
+        board_rect.x, board_rect.y, board_rect.x, board_rect.y + board_rect.height,
+        theme.bg_secondary.ChangeLightness(90), theme.bg_secondary.ChangeLightness(110));
+    gc->SetBrush(bg_brush);
+    gc->SetPen(wxPen(theme.bg_primary.ChangeLightness(80), 2));
+    gc->DrawRoundedRectangle(board_rect.x, board_rect.y, board_rect.width, board_rect.height, 15);
+
+    // 2. Adjust cell sizes for the inner board area
+    int inner_w = board_rect.width;
+    int inner_h = board_rect.height;
+    int cell_w = inner_w / size;
+    int cell_h = inner_h / size;
 
     const auto& tiles = board_->GetState().GetTiles();
 
@@ -132,44 +156,85 @@ class BoardPanel : public wxPanel {
 
       double off_x = 0, off_y = 0;
       if (animating_ && tiles[i] == anim_tile_) {
-        // Board::Move(dir) moves the *empty* cell in dir.
-        // The tile being animated moves in the OPPOSITE direction into the empty space.
         switch (anim_dir_) {
-          case Direction::kUp:    off_y = +anim_progress_ * cell_h; break; // tile slides DOWN into space
-          case Direction::kDown:  off_y = -anim_progress_ * cell_h; break; // tile slides UP into space
-          case Direction::kLeft:  off_x = +anim_progress_ * cell_w; break; // tile slides RIGHT into space
-          case Direction::kRight: off_x = -anim_progress_ * cell_w; break; // tile slides LEFT into space
+          case Direction::kUp:    off_y = +anim_progress_ * cell_h; break;
+          case Direction::kDown:  off_y = -anim_progress_ * cell_h; break;
+          case Direction::kLeft:  off_x = +anim_progress_ * cell_w; break;
+          case Direction::kRight: off_x = -anim_progress_ * cell_w; break;
         }
       }
 
-      wxRect rect(col * cell_w + static_cast<int>(off_x), row * cell_h + static_cast<int>(off_y), cell_w, cell_h);
-      rect.Deflate(5);
+      // Tile rectangle relative to the board well
+      wxRect rect(board_rect.x + col * cell_w + static_cast<int>(off_x), 
+                  board_rect.y + row * cell_h + static_cast<int>(off_y), 
+                  cell_w, cell_h);
+      rect.Deflate(6);
 
-      dc.SetBrush(wxBrush(wxColour(0, 0, 0, 50)));
-      dc.SetPen(*wxTRANSPARENT_PEN);
-      dc.DrawRoundedRectangle(rect.x + 3, rect.y + 3, rect.width, rect.height, 10);
+      // A. Shadow (sharper, matched rounding)
+      gc->SetBrush(gc->CreateBrush(wxBrush(wxColour(0, 0, 0, 60))));
+      gc->SetPen(*wxTRANSPARENT_PEN);
+      gc->DrawRoundedRectangle(rect.x + 2, rect.y + 4, rect.width, rect.height, 12);
 
-      dc.GradientFillLinear(rect, theme.tile_highlight, theme.tile_shadow, wxSOUTH);
+      // B. Body (Cushioned Gradient)
+      wxGraphicsPath tile_path = gc->CreatePath();
+      tile_path.AddRoundedRectangle(rect.x, rect.y, rect.width, rect.height, 12);
       
-      dc.SetBrush(*wxTRANSPARENT_BRUSH);
-      dc.SetPen(wxPen(theme.tile_highlight, 2));
-      dc.DrawLine(rect.GetTopLeft(), rect.GetTopRight());
-      dc.DrawLine(rect.GetTopLeft(), rect.GetBottomLeft());
-      
-      dc.SetPen(wxPen(theme.tile_shadow, 2));
-      dc.DrawLine(rect.GetBottomLeft(), rect.GetBottomRight());
-      dc.DrawLine(rect.GetTopRight(), rect.GetBottomRight());
+      wxGraphicsBrush tile_brush = gc->CreateLinearGradientBrush(
+          rect.x, rect.y, rect.x, rect.y + rect.height,
+          theme.tile_highlight, theme.tile_shadow);
+      gc->SetBrush(tile_brush);
+      gc->DrawPath(tile_path);
 
-      dc.SetTextForeground(theme.text_color);
-      if (cell_h > 0) {
-        wxFont font(cell_h / 3, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
-        dc.SetFont(font);
-        wxString label = wxString::Format("%d", tiles[i]);
-        wxSize text_size = dc.GetTextExtent(label);
-        dc.DrawText(label, rect.x + (rect.width - text_size.x) / 2, rect.y + (rect.height - text_size.y) / 2);
+      // C. Bevels (Raised 3D Look)
+      // Top highlight
+      gc->SetPen(wxPen(wxColour(255, 255, 255, 120), 3));
+      gc->StrokeLine(rect.x + 12, rect.y + 2, rect.x + rect.width - 12, rect.y + 2);
+      // Left highlight
+      gc->StrokeLine(rect.x + 2, rect.y + 12, rect.x + 2, rect.y + rect.height - 12);
+      
+      // Bottom/Right darkened bevel
+      gc->SetPen(wxPen(wxColour(0, 0, 0, 40), 2));
+      gc->StrokeLine(rect.x + 12, rect.y + rect.height - 1, rect.x + rect.width - 12, rect.y + rect.height - 1);
+      gc->StrokeLine(rect.x + rect.width - 1, rect.y + 12, rect.x + rect.width - 1, rect.y + rect.height - 12);
+
+      // D. Inner sheen (Subtle 3D rounding effect)
+      wxGraphicsPath sheen = gc->CreatePath();
+      sheen.AddRoundedRectangle(rect.x + 2, rect.y + 2, rect.width - 4, rect.height / 2, 10);
+      gc->SetBrush(gc->CreateLinearGradientBrush(
+          rect.x, rect.y, rect.x, rect.y + rect.height / 2,
+          wxColour(255, 255, 255, 60), wxColour(255, 255, 255, 0)));
+      gc->SetPen(*wxTRANSPARENT_PEN);
+      gc->DrawPath(sheen);
+
+        // E. Number
+        if (cell_h > 0) {
+          wxFont font(cell_h / 3, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
+          wxString label = wxString::Format("%d", tiles[i]);
+          
+          double tw, th, td, tl;
+          gc->SetFont(font, theme.text_color);
+          gc->GetTextExtent(label, &tw, &th, &td, &tl);
+          
+          double tx = rect.x + (rect.width - tw) / 2.0;
+          double ty = rect.y + (rect.height - th) / 2.0;
+
+          // 1. Drop Shadow (Soft dark underlay)
+          gc->SetFont(font, wxColour(0, 0, 0, 100));
+          gc->DrawText(label, tx + 1.5, ty + 1.5);
+
+          // 2. Glow Aura (Multiple semi-transparent white passes)
+          gc->SetFont(font, wxColour(255, 255, 255, 40));
+          gc->DrawText(label, tx - 1, ty);
+          gc->DrawText(label, tx + 1, ty);
+          gc->DrawText(label, tx, ty - 1);
+          gc->DrawText(label, tx, ty + 1);
+
+          // 3. Main Text (Sharp colored overlay)
+          gc->SetFont(font, theme.text_color);
+          gc->DrawText(label, tx, ty);
+        }
       }
     }
-  }
 
   void OnMouseDown(wxMouseEvent& event) {
     if (animating_ || !board_) return;
@@ -252,6 +317,11 @@ class SliderFrame : public wxFrame {
     board_panel_->Bind(wxEVT_BUTTON, &SliderFrame::OnTileClicked, this);
     // Bind the move-completion event once here, not once per move
     Bind(wxEVT_COMMAND_MENU_SELECTED, &SliderFrame::OnMoveComplete, this, 30000);
+    
+    sound_stop_timer_.Bind(wxEVT_TIMER, [this](wxTimerEvent&) {
+      wxSound::Stop();
+    });
+
     UpdateStatus();
   }
 
@@ -385,16 +455,19 @@ class SliderFrame : public wxFrame {
     board_panel_->Refresh();
     UpdateStatus();
     if (board_->IsSolved()) {
-      PlaySoundEffect("complete.wav");
+      PlaySoundEffect("complete.wav", true);
       wxMessageBox("Puzzle Solved!", "Congratulations", wxOK | wxICON_INFORMATION);
     }
     return true;
   }
 
-  void PlaySoundEffect(const wxString& filename) {
+  void PlaySoundEffect(const wxString& filename, bool is_completion = false) {
     wxString path = ResolveSoundPath(filename);
     if (!path.empty()) {
       wxSound::Play(path, wxSOUND_ASYNC);
+      if (is_completion) {
+        sound_stop_timer_.Start(2000, wxTIMER_ONE_SHOT);
+      }
     }
   }
 
@@ -410,7 +483,7 @@ class SliderFrame : public wxFrame {
       board_panel_->Refresh();  // repaint AFTER board state has changed
       UpdateStatus();
       if (!is_scrambling_ && board_->IsSolved()) {
-        PlaySoundEffect("complete.wav");
+        PlaySoundEffect("complete.wav", true);
         wxMessageBox("Puzzle Solved!", "Congratulations", wxOK | wxICON_INFORMATION);
       }
       if (is_auto && !auto_moves_.empty()) {
@@ -452,6 +525,7 @@ class SliderFrame : public wxFrame {
       auto_moves_ = sol.moves;
       auto_duration_ = 0.5;
       auto_play_slide_sound_ = true;
+      is_scrambling_ = false; 
       ProcessNextAutoMove();
     }
   }
@@ -462,7 +536,8 @@ class SliderFrame : public wxFrame {
     if (sol.success) {
       auto_moves_ = sol.moves;
       auto_duration_ = 0.5;
-      auto_play_slide_sound_ = false;
+      auto_play_slide_sound_ = true;
+      is_scrambling_ = false;
       ProcessNextAutoMove();
     } else {
       wxMessageBox("Solver could not find a solution in reasonable time.", "Info");
@@ -515,6 +590,7 @@ class SliderFrame : public wxFrame {
   std::vector<Direction> auto_moves_;
   double auto_duration_ = 0.5;
   bool auto_play_slide_sound_ = true;
+  wxTimer sound_stop_timer_;
   int optimal_moves_ = -1;
   std::function<void()> completion_callback_;
   bool is_scrambling_ = false;
