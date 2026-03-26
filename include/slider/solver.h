@@ -13,9 +13,15 @@ struct Solution {
   bool success = false;
 };
 
+struct SolverOptions {
+  // Hard cap on expanded nodes to prevent runaway memory/time usage.
+  int nodes_limit = 100000;
+};
+
 class Solver {
  public:
   static Solution Solve(const BoardState& start_state);
+  static Solution Solve(const BoardState& start_state, const SolverOptions& options);
   static Solution SolveNSteps(const BoardState& start_state, int n);
 };
 

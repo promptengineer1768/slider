@@ -5,6 +5,7 @@
 #include <cmath>
 #include <set>
 #include <algorithm>
+#include <utility>
 
 namespace slider {
 
@@ -79,7 +80,6 @@ int GetHeuristic(const BoardState& state) {
 
 struct Node {
   BoardState state;
-  std::vector<Direction> path;
   int g = 0; 
   int h = 0; 
 
@@ -88,18 +88,84 @@ struct Node {
   }
 };
 
+std::vector<Direction> GetValidMovesFromEmpty(int size, int empty_pos) {
+  std::vector<Direction> moves;
+  const int row = empty_pos / size;
+  const int col = empty_pos % size;
+
+  if (row > 0) moves.push_back(Direction::kUp);
+  if (row < size - 1) moves.push_back(Direction::kDown);
+  if (col > 0) moves.push_back(Direction::kLeft);
+  if (col < size - 1) moves.push_back(Direction::kRight);
+
+  return moves;
+}
+
+bool TryApplyMove(BoardState* state, Direction dir) {
+  if (!state) return false;
+  const int size = state->GetSize();
+  const int empty_pos = state->GetEmptyPos();
+  if (size <= 0 || empty_pos < 0) return false;
+
+  const int row = empty_pos / size;
+  const int col = empty_pos % size;
+
+  int target_row = row;
+  int target_col = col;
+
+  switch (dir) {
+    case Direction::kUp:    target_row--; break;
+    case Direction::kDown:  target_row++; break;
+    case Direction::kLeft:  target_col--; break;
+    case Direction::kRight: target_col++; break;
+  }
+
+  if (target_row < 0 || target_row >= size || target_col < 0 || target_col >= size) {
+    return false;
+  }
+
+  const int target_pos = target_row * size + target_col;
+  return state->SwapTiles(empty_pos, target_pos);
+}
+
+std::vector<Direction> ReconstructPath(
+    const BoardState& start,
+    BoardState current,
+    const std::map<BoardState, std::pair<BoardState, Direction>>& came_from) {
+  std::vector<Direction> path;
+
+  while (!(current == start)) {
+    auto it = came_from.find(current);
+    if (it == came_from.end()) {
+      // No path (shouldn't happen if called correctly).
+      return {};
+    }
+    path.push_back(it->second.second);
+    current = it->second.first;
+  }
+
+  std::reverse(path.begin(), path.end());
+  return path;
+}
+
 } // namespace
 
 Solution Solver::Solve(const BoardState& start_state) {
+  return Solve(start_state, SolverOptions{});
+}
+
+Solution Solver::Solve(const BoardState& start_state, const SolverOptions& options) {
+  if (!start_state.IsValid()) return {{}, false};
   if (start_state.IsSolved()) return {{}, true};
 
   std::priority_queue<Node, std::vector<Node>, std::greater<Node>> open_set;
-  std::map<BoardState, int> visited;
+  std::map<BoardState, int> g_score;
+  std::map<BoardState, std::pair<BoardState, Direction>> came_from;
 
-  open_set.push({start_state, {}, 0, GetHeuristic(start_state)});
-  visited[start_state] = 0;
+  open_set.push({start_state, 0, GetHeuristic(start_state)});
+  g_score[start_state] = 0;
 
-  int nodes_limit = 100000; 
+  const int nodes_limit = (options.nodes_limit > 0) ? options.nodes_limit : 100000;
   int nodes_checked = 0;
 
   while (!open_set.empty()) {
@@ -107,25 +173,28 @@ Solution Solver::Solve(const BoardState& start_state) {
     open_set.pop();
 
     if (current.state.IsSolved()) {
-      return {current.path, true};
+      return {ReconstructPath(start_state, current.state, came_from), true};
     }
 
     if (nodes_checked++ > nodes_limit) break;
 
-    Board board_current;
-    board_current.SetState(current.state);
-    auto valid_moves = board_current.GetValidMoves();
+    const int size = current.state.GetSize();
+    const int empty_pos = current.state.GetEmptyPos();
+    if (size <= 0 || empty_pos < 0) continue;
+    auto valid_moves = GetValidMovesFromEmpty(size, empty_pos);
 
     for (Direction dir : valid_moves) {
-      Board board_next = board_current;
-      board_next.Move(dir);
-      BoardState next_state = board_next.GetState();
+      BoardState next_state = current.state;
+      if (!TryApplyMove(&next_state, dir)) {
+        continue;
+      }
 
-      if (visited.find(next_state) == visited.end() || visited[next_state] > current.g + 1) {
-        visited[next_state] = current.g + 1;
-        std::vector<Direction> next_path = current.path;
-        next_path.push_back(dir);
-        open_set.push({next_state, next_path, current.g + 1, GetManhattanDistance(next_state)});
+      const int tentative_g = current.g + 1;
+      auto it = g_score.find(next_state);
+      if (it == g_score.end() || tentative_g < it->second) {
+        g_score[next_state] = tentative_g;
+        came_from[next_state] = std::make_pair(current.state, dir);
+        open_set.push({next_state, tentative_g, GetHeuristic(next_state)});
       }
     }
   }

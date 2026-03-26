@@ -20,8 +20,16 @@ TEST(SolverTest, SolveShort) {
   
   auto sol = Solver::Solve(board.GetState());
   EXPECT_TRUE(sol.success);
-  EXPECT_EQ(sol.moves.size(), 1);
+  EXPECT_EQ(sol.moves.size(), 1u);
   EXPECT_EQ(sol.moves[0], Direction::kRight);
+
+  // Apply the returned moves and ensure we reach a solved state.
+  Board replay;
+  replay.SetState(board.GetState());
+  for (Direction d : sol.moves) {
+    EXPECT_TRUE(replay.Move(d));
+  }
+  EXPECT_TRUE(replay.IsSolved());
 }
 
 TEST(SolverTest, SolveNSteps) {
@@ -31,7 +39,13 @@ TEST(SolverTest, SolveNSteps) {
   
   auto sol = Solver::SolveNSteps(board.GetState(), 1);
   EXPECT_TRUE(sol.success);
-  EXPECT_EQ(sol.moves.size(), 1);
+  EXPECT_EQ(sol.moves.size(), 1u);
+}
+
+TEST(SolverTest, FailsOnInvalidState) {
+  BoardState invalid(3, {1, 2, 3}); // wrong tile count
+  auto sol = Solver::Solve(invalid);
+  EXPECT_FALSE(sol.success);
 }
 
 } // namespace slider
