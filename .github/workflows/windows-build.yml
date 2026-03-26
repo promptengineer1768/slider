@@ -1,0 +1,36 @@
+name: Windows Build
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: ${{ github.workspace }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Bootstrap vcpkg
+        run: |
+          $vcpkgRoot = Join-Path $env:USERPROFILE 'vcpkg'
+          if (-not (Test-Path $vcpkgRoot)) {
+            git clone https://github.com/microsoft/vcpkg.git $vcpkgRoot
+          }
+          Push-Location $vcpkgRoot
+          .\bootstrap-vcpkg.bat
+          Pop-Location
+          "VCPKG_INSTALLATION_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Build debug
+        run: .\build-msvc-debug.bat
+
+      - name: Run tests
+        run: .\test-all.bat
