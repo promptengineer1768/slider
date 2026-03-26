@@ -83,9 +83,9 @@ std::optional<Direction> Board::GetDirectionToMoveTile(int tile_val) const {
   int size = state_.GetSize();
   const auto& tiles = state_.GetTiles();
   int tile_pos = -1;
-  for (int i = 0; i < tiles.size(); ++i) {
+  for (size_t i = 0; i < tiles.size(); ++i) {
     if (tiles[i] == tile_val) {
-      tile_pos = i;
+      tile_pos = static_cast<int>(i);
       break;
     }
   }

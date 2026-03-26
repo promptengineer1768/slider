@@ -318,7 +318,7 @@ class SliderFrame : public wxFrame {
     // Bind the move-completion event once here, not once per move
     Bind(wxEVT_COMMAND_MENU_SELECTED, &SliderFrame::OnMoveComplete, this, 30000);
     
-    sound_stop_timer_.Bind(wxEVT_TIMER, [this](wxTimerEvent&) {
+    sound_stop_timer_.Bind(wxEVT_TIMER, [](wxTimerEvent&) {
       wxSound::Stop();
     });
 

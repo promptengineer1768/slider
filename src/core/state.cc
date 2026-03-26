@@ -10,7 +10,7 @@ BoardState::BoardState(int size, const std::vector<int>& tiles)
     : size_(size), tiles_(tiles) {}
 
 int BoardState::GetEmptyPos() const {
-  for (int i = 0; i < tiles_.size(); ++i) {
+  for (size_t i = 0; i < tiles_.size(); ++i) {
     if (tiles_[i] == 0) return i;
   }
   return -1;
@@ -19,8 +19,8 @@ int BoardState::GetEmptyPos() const {
 bool BoardState::IsSolved() const {
   if (tiles_.empty()) return false;
   // A solved state is 1, 2, ..., size*size-1, 0
-  for (int i = 0; i < tiles_.size() - 1; ++i) {
-    if (tiles_[i] != i + 1) return false;
+  for (size_t i = 0; i + 1 < tiles_.size(); ++i) {
+    if (tiles_[i] != static_cast<int>(i) + 1) return false;
   }
   return tiles_.back() == 0;
 }
@@ -32,8 +32,8 @@ bool BoardState::IsValid() const {
   // All tiles 0 to size*size-1 must be present
   std::vector<int> sorted_tiles = tiles_;
   std::sort(sorted_tiles.begin(), sorted_tiles.end());
-  for (int i = 0; i < sorted_tiles.size(); ++i) {
-    if (sorted_tiles[i] != i) return false;
+  for (size_t i = 0; i < sorted_tiles.size(); ++i) {
+    if (sorted_tiles[i] != static_cast<int>(i)) return false;
   }
 
   // Solvability check for sliding puzzle
@@ -51,9 +51,9 @@ bool BoardState::IsValid() const {
   //   - blank on odd row from bottom (1, 3, 5...) and inversions is even.
   
   int inversions = 0;
-  for (int i = 0; i < tiles_.size(); ++i) {
+  for (size_t i = 0; i < tiles_.size(); ++i) {
     if (tiles_[i] == 0) continue;
-    for (int j = i + 1; j < tiles_.size(); ++j) {
+    for (size_t j = i + 1; j < tiles_.size(); ++j) {
       if (tiles_[j] != 0 && tiles_[i] > tiles_[j]) {
         inversions++;
       }

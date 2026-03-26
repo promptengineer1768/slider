@@ -14,14 +14,14 @@ int GetManhattanDistance(const BoardState& state) {
   int size = state.GetSize();
   const auto& tiles = state.GetTiles();
   int distance = 0;
-  for (int i = 0; i < tiles.size(); ++i) {
+  for (size_t i = 0; i < tiles.size(); ++i) {
     if (tiles[i] == 0) continue;
     int target_val = tiles[i];
     int target_pos = target_val - 1;
     int target_row = target_pos / size;
     int target_col = target_pos % size;
-    int row = i / size;
-    int col = i % size;
+    int row = static_cast<int>(i) / size;
+    int col = static_cast<int>(i) % size;
     distance += std::abs(row - target_row) + std::abs(col - target_col);
   }
   return distance;
