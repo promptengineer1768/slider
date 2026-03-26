@@ -3,7 +3,6 @@
 #include <unordered_map>
 #include <vector>
 #include <cmath>
-#include <set>
 #include <algorithm>
 #include <utility>
 #include <cstddef>
@@ -91,16 +90,17 @@ struct Node {
 
 struct BoardStateHash {
   size_t operator()(const BoardState& s) const noexcept {
-    size_t h = 1469598103934665603ull;
-    auto mix = [&h](size_t v) {
-      // FNV-1a-ish mixing
-      h ^= v + 0x9e3779b97f4a7c15ull + (h << 6) + (h >> 2);
+    constexpr size_t kHashSeed = 1469598103934665603ull;
+    constexpr size_t kHashMix = 0x9e3779b97f4a7c15ull;
+    auto mix = [kHashMix](size_t& seed, size_t value) {
+      seed ^= value + kHashMix + (seed << 6) + (seed >> 2);
     };
 
-    mix(static_cast<size_t>(s.GetSize()));
+    size_t h = kHashSeed;
+    mix(h, static_cast<size_t>(s.GetSize()));
     const auto& tiles = s.GetTiles();
     for (int t : tiles) {
-      mix(static_cast<size_t>(t));
+      mix(h, static_cast<size_t>(t));
     }
     return h;
   }
@@ -119,10 +119,9 @@ std::vector<Direction> GetValidMovesFromEmpty(int size, int empty_pos) {
   return moves;
 }
 
-bool TryApplyMove(BoardState* state, Direction dir) {
-  if (!state) return false;
-  const int size = state->GetSize();
-  const int empty_pos = state->GetEmptyPos();
+bool TryApplyMove(BoardState& state, Direction dir) {
+  const int size = state.GetSize();
+  const int empty_pos = state.GetEmptyPos();
   if (size <= 0 || empty_pos < 0) return false;
 
   const int row = empty_pos / size;
@@ -143,10 +142,12 @@ bool TryApplyMove(BoardState* state, Direction dir) {
   }
 
   const int target_pos = target_row * size + target_col;
-  return state->SwapTiles(empty_pos, target_pos);
+  return state.SwapTiles(empty_pos, target_pos);
 }
 
 template <typename CameFromMap>
+// `came_from` maps each explored state to the prior state and the move used to
+// reach it, so we walk backward from the solved state until we reach `start`.
 std::vector<Direction> ReconstructPath(
     const BoardState& start,
     BoardState current,
@@ -195,7 +196,8 @@ Solution Solver::Solve(const BoardState& start_state, const SolverOptions& optio
       return {ReconstructPath(start_state, current.state, came_from), true};
     }
 
-    if (nodes_checked++ > nodes_limit) break;
+    if (nodes_checked >= nodes_limit) break;
+    ++nodes_checked;
 
     const int size = current.state.GetSize();
     const int empty_pos = current.state.GetEmptyPos();
@@ -204,7 +206,7 @@ Solution Solver::Solve(const BoardState& start_state, const SolverOptions& optio
 
     for (Direction dir : valid_moves) {
       BoardState next_state = current.state;
-      if (!TryApplyMove(&next_state, dir)) {
+      if (!TryApplyMove(next_state, dir)) {
         continue;
       }
 

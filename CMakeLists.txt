@@ -84,6 +84,7 @@ if(SLIDER_BUILD_TESTS)
         tests/unit/gui_logic_test.cc
         tests/unit/serialization_test.cc
         tests/unit/state_validity_test.cc
+        tests/unit/savefile_test.cc
     )
     target_link_libraries(slider_tests
         PRIVATE GTest::gtest_main GTest::gtest slider_core

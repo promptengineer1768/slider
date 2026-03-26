@@ -20,8 +20,11 @@ struct SolverOptions {
 
 class Solver {
  public:
+  // Solve a board using the default search options.
   static Solution Solve(const BoardState& start_state);
+  // Solve a board using explicit search limits.
   static Solution Solve(const BoardState& start_state, const SolverOptions& options);
+  // Solve and return only the first N moves from the full solution.
   static Solution SolveNSteps(const BoardState& start_state, int n);
 };
 

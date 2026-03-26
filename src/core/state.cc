@@ -39,7 +39,10 @@ bool BoardState::IsSolved() const {
 
 bool BoardState::IsValid() const {
   if (size_ <= 0) return false;
-  if (tiles_.size() != static_cast<size_t>(size_ * size_)) return false;
+  const size_t size_u = static_cast<size_t>(size_);
+  if (size_u > std::numeric_limits<size_t>::max() / size_u) return false;
+  const size_t expected_tiles = size_u * size_u;
+  if (tiles_.size() != expected_tiles) return false;
   
   // All tiles 0 to size*size-1 must be present
   std::vector<int> sorted_tiles = tiles_;
@@ -48,19 +51,9 @@ bool BoardState::IsValid() const {
     if (sorted_tiles[i] != static_cast<int>(i)) return false;
   }
 
-  // Solvability check for sliding puzzle
-  // For even width, row of empty tile from bottom (1st from bottom = 0) must have parities... 
-  // For simplicity, I'll rely on the fact that if we generate from moves it's always solvable.
-  // But let's check properly:
-  // An N*N puzzle is solvable iff:
-  // If N is odd, number of inversions is even.
-  // If N is even, number of inversions + row of empty from bottom (1st = 0) is even? 
-  // Let's check Wikipedia. 
-  // Wikipedia: 
-  // a) width is odd, then inversions is even.
-  // b) width is even:
-  //   - blank on even row from bottom (0, 2, 4...) and inversions is odd.
-  //   - blank on odd row from bottom (1, 3, 5...) and inversions is even.
+  // Solvability rule for the standard goal state (blank in the bottom-right):
+  // odd widths require an even inversion count; even widths require inversion
+  // parity to differ from the blank-row parity counted from the bottom.
   
   int inversions = 0;
   for (size_t i = 0; i < tiles_.size(); ++i) {
@@ -75,13 +68,10 @@ bool BoardState::IsValid() const {
   if (size_ % 2 != 0) {
     return inversions % 2 == 0;
   } else {
-    // Standard rule (goal blank at bottom-right):
-    // Let blank_row_from_bottom be 1-based (bottom row = 1).
-    // Puzzle solvable iff parity(inversions) != parity(blank_row_from_bottom).
     const int empty_pos = GetEmptyPos();
     if (empty_pos < 0) return false;
-    const int empty_row_from_top = empty_pos / size_; // 0-based
-    const int blank_row_from_bottom = size_ - empty_row_from_top; // 1..size
+    const int empty_row_from_top = empty_pos / size_;
+    const int blank_row_from_bottom = size_ - empty_row_from_top;
     return (inversions % 2) != (blank_row_from_bottom % 2);
   }
 }
@@ -107,13 +97,17 @@ BoardState BoardState::Deserialize(const std::string& data) {
   int size = 0;
   ss >> size;
   if (size <= 0) return BoardState();
-  const int tile_count = size * size;
-  if (tile_count <= 0) return BoardState();
+  const size_t size_u = static_cast<size_t>(size);
+  if (size_u > std::numeric_limits<size_t>::max() / size_u) return BoardState();
+  const size_t tile_count = size_u * size_u;
+  if (tile_count == 0 || tile_count > static_cast<size_t>(std::numeric_limits<int>::max())) {
+    return BoardState();
+  }
 
   std::vector<int> tiles;
-  tiles.reserve(static_cast<size_t>(tile_count));
+  tiles.reserve(tile_count);
 
-  for (int i = 0; i < tile_count; ++i) {
+  for (size_t i = 0; i < tile_count; ++i) {
     int v = 0;
     if (!(ss >> v)) {
       return BoardState();

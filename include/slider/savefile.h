@@ -11,6 +11,7 @@
 namespace slider {
 
 struct SaveFileOptions {
+  // Maximum save file size accepted by the loader.
   size_t max_bytes = 1024 * 10;  // 10KB
 };
 
@@ -25,4 +26,3 @@ std::optional<BoardState> LoadBoardStateFromFile(const std::filesystem::path& pa
 }  // namespace slider
 
 #endif  // SLIDER_CORE_SAVEFILE_H_
-

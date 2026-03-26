@@ -30,7 +30,9 @@ class Board {
   int GetMoveCount() const { return move_count_; }
   void ResetMoveCount() { move_count_ = 0; }
 
+  // Returns the legal slide directions from the current empty-cell position.
   std::vector<Direction> GetValidMoves() const;
+  // Maps a tile value to the direction the empty cell must move to slide it.
   std::optional<Direction> GetDirectionToMoveTile(int tile_val) const;
 
  private:

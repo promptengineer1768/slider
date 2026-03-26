@@ -11,8 +11,22 @@ Board::Board(int size) {
     move_count_ = 0;
     return;
   }
-  std::vector<int> tiles(size * size);
-  for (int i = 0; i < size * size - 1; ++i) {
+  const size_t size_u = static_cast<size_t>(size);
+  if (size_u > std::numeric_limits<size_t>::max() / size_u) {
+    state_ = BoardState();
+    move_count_ = 0;
+    return;
+  }
+
+  const size_t tile_count = size_u * size_u;
+  if (tile_count == 0 || tile_count > static_cast<size_t>(std::numeric_limits<int>::max())) {
+    state_ = BoardState();
+    move_count_ = 0;
+    return;
+  }
+
+  std::vector<int> tiles(tile_count);
+  for (int i = 0; i < static_cast<int>(tile_count) - 1; ++i) {
     tiles[i] = i + 1;
   }
   tiles.back() = 0;
@@ -110,6 +124,7 @@ std::optional<Direction> Board::GetDirectionToMoveTile(int tile_val) const {
   int tile_row = tile_pos / size;
   int tile_col = tile_pos % size;
 
+  // The returned direction describes how the blank must move to swap with the tile.
   if (tile_row == row - 1 && tile_col == col) return Direction::kUp;
   if (tile_row == row + 1 && tile_col == col) return Direction::kDown;
   if (tile_row == row && tile_col == col - 1) return Direction::kLeft;
